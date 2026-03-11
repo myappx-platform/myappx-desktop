@@ -1,3 +1,5 @@
+MyAppx Desktop - Powered by Mattermost Desktop
+
 Mattermost Desktop
 
 © 2016-2017 Mattermost, Inc.  All Rights Reserved.  See LICENSE.txt for license information.

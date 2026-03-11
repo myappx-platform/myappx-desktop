@@ -59,7 +59,7 @@ export class DownloadsDropdownView {
         this.view.setBackgroundColor('#00000000');
         performanceMonitor.registerView('DownloadsDropdownView', this.view.webContents);
         ThemeManager.registerMainWindowView(this.view.webContents);
-        this.view.webContents.loadURL('mattermost-desktop://renderer/downloadsDropdown.html');
+        this.view.webContents.loadURL('myappx-desktop://renderer/downloadsDropdown.html');
         MainWindow.get()?.contentView.addChildView(this.view);
     };
 

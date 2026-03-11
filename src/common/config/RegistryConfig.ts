@@ -12,7 +12,7 @@ import type {RegistryConfig as RegistryConfigType, Server} from 'types/config';
 
 const log = new Logger('RegistryConfig');
 const REGISTRY_HIVE_LIST = [HKEY.HKEY_LOCAL_MACHINE, HKEY.HKEY_CURRENT_USER];
-const BASE_REGISTRY_KEY_PATH = 'SOFTWARE\\Policies\\Mattermost';
+const BASE_REGISTRY_KEY_PATH = 'SOFTWARE\\Policies\\MyAppxDesktop';
 export const REGISTRY_READ_EVENT = 'registry-read';
 
 /**
@@ -66,6 +66,16 @@ export default class RegistryConfig extends EventEmitter {
             } catch (error) {
                 log.warn('Nothing retrieved for \'EnableUpdateNotifications\'', {error});
             }
+
+            // extract EnableAutoUpdater from the registry
+            try {
+                const enableAutoUpdater = this.getEnableAutoUpdatorFromRegistry();
+                if (enableAutoUpdater !== undefined) {
+                    this.data.enableAutoUpdater = enableAutoUpdater;
+                }
+            } catch (error) {
+                log.warn('Nothing retrieved for \'EnableAutoUpdater\'', {error});
+            }
         }
 
         // this will happen wether we are on windows and load the info or not
@@ -101,6 +111,15 @@ export default class RegistryConfig extends EventEmitter {
    * Determines whether the auto updated has been enabled, disabled or isn't configured
    */
     private getEnableUpdateNotificationsFromRegistry() {
+        // This is still called EnableAutoUpdater in the registry for backwards compatibility
+        const value = this.getRegistryEntry(BASE_REGISTRY_KEY_PATH, 'EnableAutoUpdater').pop();
+        return value === undefined ? value : value === 1;
+    }
+
+    /**
+   * Determines whether the auto updated has been enabled, disabled or isn't configured
+   */
+    private getEnableAutoUpdatorFromRegistry() {
         // This is still called EnableAutoUpdater in the registry for backwards compatibility
         const value = this.getRegistryEntry(BASE_REGISTRY_KEY_PATH, 'EnableAutoUpdater').pop();
         return value === undefined ? value : value === 1;

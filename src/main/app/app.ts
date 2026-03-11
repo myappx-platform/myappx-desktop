@@ -10,11 +10,12 @@ import WebContentsManager from 'app/views/webContentsManager';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
+import updateManager from 'main/autoUpdater';
 import {localizeMessage} from 'main/i18nManager';
 import CertificateStore from 'main/security/certificateStore';
 import sentryHandler from 'main/sentryHandler';
 
-import {getDeeplinkingURL, openDeepLink, resizeScreen} from './utils';
+import {getDeeplinkingURL, openDeepLink, resizeScreen, stopAppserver} from './utils';
 
 export const certificateErrorCallbacks = new Map();
 
@@ -75,13 +76,27 @@ export function handleAppWillFinishLaunching() {
     });
 }
 
-export function handleAppBeforeQuit() {
+export async function handleAppBeforeQuit(event?: Event) {
     log.debug('handleAppBeforeQuit');
 
+    // Avoid re-entry when app.quit() re-emits before-quit
+    if (global.willAppQuit) {
+        return;
+    }
+    if (event) {
+        event.preventDefault();
+    }
+
+    // Shutdown AppServer and DB; wait for completion before quitting
+    await stopAppserver();
+
     // Make sure tray icon gets removed if the user exits via CTRL-Q
-    sentryHandler.flush();
     Tray.destroy();
     global.willAppQuit = true;
+    updateManager.handleOnQuit();
+    if (event) {
+        app.quit();
+    }
 }
 
 export async function handleAppCertificateError(event: Event, webContents: WebContents, url: string, error: string, certificate: Certificate, callback: (isTrusted: boolean) => void) {

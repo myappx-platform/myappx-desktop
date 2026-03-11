@@ -31,3 +31,6 @@ fastlane/report.xml
 *.p8
 
 .aider*
+
+extraResources/
+appserver-portable/

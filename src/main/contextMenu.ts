@@ -14,7 +14,7 @@ const defaultMenuOptions = {
         let isInternalSrc;
         try {
             const srcurl = parseURL(p.srcURL);
-            isInternalSrc = srcurl?.protocol === 'mattermost-desktop:';
+            isInternalSrc = srcurl?.protocol === 'myappx-desktop:';
         } catch (err) {
             isInternalSrc = false;
         }

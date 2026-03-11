@@ -52,7 +52,7 @@ index 2d5cd3c..ef2d419 100644
      <Property Id="DISABLEADVTSHORTCUTS" Value="1"/>
 +    <Property Id="REINSTALLMODE" Value="amus" />
 +    <Property Id="EXEINSTALLEREXISTS">
-+      <DirectorySearch Path="[LocalAppDataFolder]\Programs\mattermost-desktop" Depth="0">
++      <DirectorySearch Path="[LocalAppDataFolder]\Programs\MyAppx-Desktop" Depth="0">
 +        <FileSearch Id="SearchEXEUninstaller" Name="Uninstall ${productName}.exe" />
 +      </DirectorySearch>
 +    </Property>
@@ -64,8 +64,8 @@ index 2d5cd3c..ef2d419 100644
  
 +    <util:CloseApplication
 +      Id="closeApplication"
-+      Description="Mattermost is still running. Please ensure to manually close before continuing installation."
-+      Target="Mattermost.exe"
++      Description="MyAppx Desktop is still running. Please ensure to manually close before continuing installation."
++      Target="MyAppxDesktop.exe"
 +      RebootPrompt="no"
 +      PromptToContinue="yes"
 +    />

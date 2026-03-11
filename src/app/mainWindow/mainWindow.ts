@@ -109,7 +109,7 @@ export class MainWindow extends EventEmitter {
         this.win.browserWindow.contentView.on('bounds-changed', this.handleBoundsChanged);
         this.win.browserWindow.webContents.on('before-input-event', this.onBeforeInputEvent);
 
-        const localURL = 'mattermost-desktop://renderer/index.html';
+        const localURL = 'myappx-desktop://renderer/index.html';
         performanceMonitor.registerView('MainWindow', this.win.browserWindow.webContents);
         this.win.registerThemeManager(ThemeManager.registerMainWindowView);
         this.win.browserWindow.loadURL(localURL).catch(

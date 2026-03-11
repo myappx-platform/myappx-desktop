@@ -37,7 +37,7 @@ export default function createTrayMenu() {
 
                 ModalManager.addModal(
                     ModalConstants.SETTINGS_MODAL,
-                    'mattermost-desktop://renderer/settings.html',
+                    'myappx-desktop://renderer/settings.html',
                     getLocalPreload('internalAPI.js'),
                     null,
                     mainWindow,

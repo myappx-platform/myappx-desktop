@@ -85,7 +85,7 @@ export class ServerDropdownView {
         this.view.setBackgroundColor('#00000000');
         performanceMonitor.registerView('ServerDropdownView', this.view.webContents);
         ThemeManager.registerMainWindowView(this.view.webContents);
-        this.view.webContents.loadURL('mattermost-desktop://renderer/dropdown.html');
+        this.view.webContents.loadURL('myappx-desktop://renderer/dropdown.html');
 
         this.setOrderedServers();
         this.windowBounds = MainWindow.getBounds();

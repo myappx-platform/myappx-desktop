@@ -23,25 +23,26 @@ import {DEFAULT_ACADEMY_LINK, DEFAULT_HELP_LINK, DEFAULT_UPGRADE_LINK} from '../
  * @prop {[]} allowedProtocols - Defines which protocols should be automatically allowed
  */
 const buildConfig: BuildConfig = {
-    defaultServers: [/*
-    {
-      name: 'example',
-      url: 'https://example.com'
-    }
-  */],
+    defaultServers: [
+        {
+            name: 'My Workspace',
+            url: 'https://localhost:18443/',
+        },
+    ],
     helpLink: DEFAULT_HELP_LINK,
     academyLink: DEFAULT_ACADEMY_LINK,
     upgradeLink: DEFAULT_UPGRADE_LINK,
     enableServerManagement: true,
+    enableAutoUpdater: true,
     enableUpdateNotifications: true,
-    updateNotificationURL: 'https://releases.mattermost.com/desktop',
-    macAppStoreUpdateURL: 'macappstore://apps.apple.com/us/app/mattermost-desktop/id1614666244',
-    windowsStoreUpdateURL: 'ms-windows-store://pdp/?productid=XP8BR8MH3LPKLT',
-    linuxUpdateURL: 'https://docs.mattermost.com/deployment-guide/desktop/linux-desktop-install.html',
-    linuxGitHubReleaseURL: 'https://github.com/mattermost/desktop/releases/tag/v',
+    updateNotificationURL: 'https://myappx.sourceforge.io/desktop',
+    macAppStoreUpdateURL: 'macappstore://apps.apple.com/us/app/myappx-desktop/id0000000000',
+    windowsStoreUpdateURL: 'ms-windows-store://pdp/?productid=X0000000000',
+    linuxUpdateURL: 'https://myappx.sourceforge.io/desktop/linux-desktop-install.html',
+    linuxGitHubReleaseURL: 'https://github.com/longnan/myappx-desktop/releases/tag/v',
     managedResources: ['trusted'],
     allowedProtocols: [
-        'mattermost',
+        'myappx',
         'ftp',
         'mailto',
         'tel',

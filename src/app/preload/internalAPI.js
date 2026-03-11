@@ -64,6 +64,8 @@ import {
     RECEIVE_DOWNLOADS_DROPDOWN_SIZE,
     REQUEST_CLEAR_DOWNLOADS_DROPDOWN,
     REQUEST_DOWNLOADS_DROPDOWN_INFO,
+    START_UPDATE_DOWNLOAD,
+    START_UPGRADE,
     TOGGLE_DOWNLOADS_DROPDOWN_MENU,
     DOWNLOADS_DROPDOWN_OPEN_FILE,
     MODAL_CANCEL,
@@ -259,6 +261,8 @@ contextBridge.exposeInMainWorld('desktop', {
         sendSize: (width, height) => ipcRenderer.send(RECEIVE_DOWNLOADS_DROPDOWN_SIZE, width, height),
         requestClearDownloadsDropdown: () => ipcRenderer.send(REQUEST_CLEAR_DOWNLOADS_DROPDOWN),
         openFile: (item) => ipcRenderer.send(DOWNLOADS_DROPDOWN_OPEN_FILE, item),
+        startUpdateDownload: () => ipcRenderer.send(START_UPDATE_DOWNLOAD),
+        startUpgrade: () => ipcRenderer.send(START_UPGRADE),
         focus: () => ipcRenderer.send(DOWNLOADS_DROPDOWN_FOCUSED),
     },
 

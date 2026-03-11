@@ -25,7 +25,7 @@ export class URLView {
 
         this.urlView = new WebContentsView({webPreferences: {preload: getLocalPreload('internalAPI.js')}});
         this.urlView.setBackgroundColor('#00000000');
-        this.urlView.webContents.loadURL('mattermost-desktop://renderer/urlView.html');
+        this.urlView.webContents.loadURL('myappx-desktop://renderer/urlView.html');
 
         parent.contentView.addChildView(this.urlView);
         performanceMonitor.registerView(`URLView-${parent.webContents.id}`, this.urlView.webContents);
