@@ -98,3 +98,8 @@ On the next startup, the app automatically:
 4. Starts appserver and database as usual
 
 ✅ **No manual intervention needed** - just restart the app after a crash.
+
+## Portable Server 相关代码
+utils.ts
+app.ts
+initialize.ts

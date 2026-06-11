@@ -88,7 +88,7 @@ export async function handleAppBeforeQuit(event?: Event) {
     }
 
     // Shutdown AppServer and DB; wait for completion before quitting
-    await stopAppserver();
+    // await stopAppserver();
 
     // Make sure tray icon gets removed if the user exits via CTRL-Q
     Tray.destroy();

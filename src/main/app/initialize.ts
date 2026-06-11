@@ -127,16 +127,16 @@ export async function initialize() {
 
     // Kill any orphan appserver/DB from prior run before touching appserver-portable.
     // This avoids EPERM when renaming (backup) appserver-portable on Windows.
-    await ensureOrphanAppserverAndDbStopped();
+    // await ensureOrphanAppserverAndDbStopped();
 
     // Initialize persistent resources (must be done before starting AppServer)
     // This ensures extraResources are copied to user data directory and survive reinstallation.
     // Extracts appserver-portable.zip from extraResources to persistent-resources/appserver-portable.
-    await initializePersistentResources();
+    // await initializePersistentResources();
 
     // start AppServer (DB start is fire-and-forget; 6s delay allows DB to become ready)
-    startAppserver();
-    await new Promise((resolve) => setTimeout(resolve, 6000));
+    // startAppserver();
+    // await new Promise((resolve) => setTimeout(resolve, 6000));
 
     // https://stackoverflow.com/questions/57676652/how-to-import-a-self-signed-certificate-in-electron-application
 
