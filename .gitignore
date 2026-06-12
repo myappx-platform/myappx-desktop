@@ -32,5 +32,3 @@ fastlane/report.xml
 
 .aider*
 
-extraResources/
-appserver-portable/

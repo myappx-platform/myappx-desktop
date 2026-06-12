@@ -40,7 +40,7 @@ npm run package:windows-installers
 
 **Before upgrading** (in-app or manual installer), you must:
 - Close the running instance
-- Ensure appserver and PostgreSQL are stopped
+- Ensure appxserver and PostgreSQL are stopped
 
 Otherwise, the installation or startup may fail.
 
@@ -51,7 +51,7 @@ Otherwise, the installation or startup may fail.
 1. Go to **Check for updates** → **Restart and install**
 2. The app automatically handles:
    - Runs `before-quit` handler
-   - Stops appserver (kills Java/jetty process)
+   - Stops appxserver (kills Java/jetty process)
    - Runs `stop-db.bat` and waits for completion (up to 30s)
    - Quits and runs the installer
 
@@ -62,7 +62,7 @@ Otherwise, the installation or startup may fail.
 1. **Quit the app first**:
    - File → Quit, or
    - Tray icon → Quit
-2. This automatically stops appserver and PostgreSQL
+2. This automatically stops appxserver and PostgreSQL
 3. Run the new installer (`setup.exe`)
 
 ⚠️ **Warning**: Do not run the installer while the app is still running.
@@ -86,16 +86,16 @@ Otherwise, the installation or startup may fail.
 
 ## Abnormal Exit (Crash Recovery)
 
-If the desktop instance exits abnormally (force-quit, crash, power loss, etc.), appserver and PostgreSQL may continue running as orphan processes.
+If the desktop instance exits abnormally (force-quit, crash, power loss, etc.), appxserver and PostgreSQL may continue running as orphan processes.
 
 ### Automatic Recovery
 
 On the next startup, the app automatically:
 
-1. Reads `appserver.pid` from the appserver work directory (if present)
-2. Kills the orphan appserver process tree
+1. Reads `appxserver.pid` from the appxserver work directory (if present)
+2. Kills the orphan appxserver process tree
 3. Runs `stop-db.bat` to stop PostgreSQL
-4. Starts appserver and database as usual
+4. Starts appxserver and database as usual
 
 ✅ **No manual intervention needed** - just restart the app after a crash.
 

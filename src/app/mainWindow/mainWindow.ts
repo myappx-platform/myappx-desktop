@@ -206,6 +206,7 @@ export class MainWindow extends EventEmitter {
             return {
                 width: DEFAULT_WINDOW_WIDTH,
                 height: DEFAULT_WINDOW_HEIGHT,
+                maximized: true,
             };
         }
     };

@@ -21,7 +21,7 @@ import {MattermostServer} from 'common/servers/MattermostServer';
 import ServerManager from 'common/servers/serverManager';
 import {isValidURI} from 'common/utils/url';
 import {localizeMessage} from 'main/i18nManager';
-import {getAppserverWorkDir} from 'main/persistentResources';
+import {getAppxserverWorkDir} from 'main/persistentResources';
 import {ServerInfo} from 'main/server/serverInfo';
 
 import type {RemoteInfo} from 'types/server';
@@ -35,18 +35,19 @@ const appIcon = nativeImage.createFromPath(appIconURL);
 const log = new Logger('App.Utils');
 
 // Use persistent resources directory (survives reinstallation)
-const workDir = getAppserverWorkDir();
+const workDir = getAppxserverWorkDir();
 
-/** PID file for appserver; used to kill orphan processes after desktop crash. */
-const APPSERVER_PID_FILE = 'appserver.pid';
+/** PID file for appxserver; used to kill orphan processes after desktop crash. */
+const APPXSERVER_PID_FILE = 'appxserver.pid';
+const LEGACY_APPXSERVER_PID_FILE = 'appserver.pid';
 
-/** Spawn options for long-running detached processes (e.g. run-appserver.bat) */
+/** Spawn options for long-running detached processes (e.g. run-appxserver.bat) */
 const spawnOption = {cwd: workDir, detached: true, stdio: 'ignore' as const};
 
 /** Spawn options for sync DB control (capture output for logging) */
 const stopDBOptions = {cwd: workDir, encoding: 'utf8' as const};
 
-let appserver: ChildProcess | undefined;
+let appxserver: ChildProcess | undefined;
 
 /**
  * Start PostgreSQL database (fire-and-forget). Does not wait for start-db.bat to finish;
@@ -85,14 +86,35 @@ function restartDB(): void {
     startDB();
 }
 
+function resolveMigrationFlag(): string | undefined {
+    return process.env.ENV_APPXSERVER_MIGRATION ?? process.env.ENV_APPSERVER_MIGRATION;
+}
+
+function clearMigrationFlag(): void {
+    process.env.ENV_APPXSERVER_MIGRATION = '';
+    process.env.ENV_APPSERVER_MIGRATION = '';
+}
+
+function resolvePidFilePath(): string {
+    const currentPath = path.join(workDir, APPXSERVER_PID_FILE);
+    if (fs.existsSync(currentPath)) {
+        return currentPath;
+    }
+    const legacyPath = path.join(workDir, LEGACY_APPXSERVER_PID_FILE);
+    if (fs.existsSync(legacyPath)) {
+        return legacyPath;
+    }
+    return currentPath;
+}
+
 /**
- * Run db-sync.bat once after an appserver upgrade when ENV_APPSERVER_MIGRATION=True.
- * Uses the persistent appserver workDir so that it survives reinstallations.
+ * Run db-sync.bat once after an appxserver upgrade when ENV_APPXSERVER_MIGRATION=True.
+ * Uses the persistent appxserver workDir so that it survives reinstallations.
  */
 export function runDbSyncIfNeeded(): void {
-    const flag = process.env.ENV_APPSERVER_MIGRATION;
+    const flag = resolveMigrationFlag();
     if (!flag || flag.toLowerCase() !== 'true') {
-        log.info('ENV_APPSERVER_MIGRATION is not set to True; skipping db-sync.bat');
+        log.info('ENV_APPXSERVER_MIGRATION is not set to True; skipping db-sync.bat');
         return;
     }
 
@@ -102,7 +124,7 @@ export function runDbSyncIfNeeded(): void {
         return;
     }
 
-    log.info('Running db-sync.bat for appserver migration (ENV_APPSERVER_MIGRATION=True)');
+    log.info('Running db-sync.bat for appxserver migration (ENV_APPXSERVER_MIGRATION=True)');
     const result = spawnSync('cmd', ['/C', 'db-sync.bat'], {cwd: workDir, encoding: 'utf8'});
 
     if (result.status === 0) {
@@ -113,16 +135,16 @@ export function runDbSyncIfNeeded(): void {
 
     // Clear the in-process flag to avoid re-running in this session.
     // The system environment variable (if set by installer) should be updated separately if needed.
-    process.env.ENV_APPSERVER_MIGRATION = '';
+    clearMigrationFlag();
 }
 
 /**
- * Kill any orphan appserver (from PID file) and stop DB. Run before startAppserver on startup so
- * that a prior desktop crash does not leave appserver/DB running and cause port or lock conflicts.
+ * Kill any orphan appxserver (from PID file) and stop DB. Run before startAppxserver on startup so
+ * that a prior desktop crash does not leave appxserver/DB running and cause port or lock conflicts.
  */
-export function ensureOrphanAppserverAndDbStopped(): Promise<void> {
+export function ensureOrphanAppxserverAndDbStopped(): Promise<void> {
     return new Promise((resolve) => {
-        const pidPath = path.join(workDir, APPSERVER_PID_FILE);
+        const pidPath = resolvePidFilePath();
 
         const runStopDBAndResolve = () => {
             try {
@@ -130,7 +152,7 @@ export function ensureOrphanAppserverAndDbStopped(): Promise<void> {
                     log.info('Try to stop-db if it is running');
                     stopDB();
                 } else {
-                    log.info('Appserver workDir does not exist yet; skipping stop-db');
+                    log.info('Appxserver workDir does not exist yet; skipping stop-db');
                 }
             } catch (e) {
                 log.warn(`stop-db error (continuing anyway): ${e}`);
@@ -143,22 +165,22 @@ export function ensureOrphanAppserverAndDbStopped(): Promise<void> {
             const raw = fs.readFileSync(pidPath, 'utf8').trim();
             pid = parseInt(raw, 10);
             if (!Number.isInteger(pid) || pid <= 0) {
-                log.warn(`Invalid appserver pid in ${pidPath}, ignoring`);
+                log.warn(`Invalid appxserver pid in ${pidPath}, ignoring`);
                 runStopDBAndResolve();
                 return;
             }
         } catch (e) {
-            log.warn(`Could not read appserver pid file ${pidPath}: ${e}`);
+            log.warn(`Could not read appxserver pid file ${pidPath}: ${e}`);
             runStopDBAndResolve();
             return;
         }
 
-        log.info(`Killing orphan appserver process ${pid} (desktop likely exited abnormally)`);
+        log.info(`Killing orphan appxserver process ${pid} (desktop likely exited abnormally)`);
         treeKill(pid, (err) => {
             if (err) {
-                log.warn(`Orphan appserver treeKill ${pid}: ${err}`);
+                log.warn(`Orphan appxserver treeKill ${pid}: ${err}`);
             } else {
-                log.info(`Killed orphan appserver process ${pid}`);
+                log.info(`Killed orphan appxserver process ${pid}`);
             }
             runStopDBAndResolve();
         });
@@ -166,49 +188,49 @@ export function ensureOrphanAppserverAndDbStopped(): Promise<void> {
 }
 
 /**
- * Start DB (restart), then run appserver. Caller should allow extra time for DB to
+ * Start DB (restart), then run appxserver. Caller should allow extra time for DB to
  * become ready before using it (e.g. the 6s delay in initialize).
  */
-export function startAppserver(): void {
+export function startAppxserver(): void {
     restartDB();
 
-    // After DB restart, run optional DB migration if requested by ENV_APPSERVER_MIGRATION.
+    // After DB restart, run optional DB migration if requested by ENV_APPXSERVER_MIGRATION.
     runDbSyncIfNeeded();
 
     try {
-        appserver = spawn('cmd', ['/C', 'run-appserver.bat'], spawnOption);
-        const pid = appserver.pid!;
-        log.info(`Successfully started myappx appserver process ${pid}`);
+        appxserver = spawn('cmd', ['/C', 'run-appxserver.bat'], spawnOption);
+        const pid = appxserver.pid!;
+        log.info(`Successfully started myappx appxserver process ${pid}`);
         try {
-            fs.writeFileSync(path.join(workDir, APPSERVER_PID_FILE), String(pid), 'utf8');
+            fs.writeFileSync(path.join(workDir, APPXSERVER_PID_FILE), String(pid), 'utf8');
         } catch (e) {
-            log.warn(`Could not write appserver pid file: ${e}`);
+            log.warn(`Could not write appxserver pid file: ${e}`);
         }
     } catch (err) {
-        log.error(`Failed to spawn myappx appserver: ${err}`);
+        log.error(`Failed to spawn myappx appxserver: ${err}`);
         throw err;
     }
 }
 
-/** Timeout (ms) for stopAppserver; if treeKill or stop-db do not complete by then, we resolve to avoid blocking quit. */
-const STOP_APPSERVER_TIMEOUT_MS = 45000;
+/** Timeout (ms) for stopAppxserver; if treeKill or stop-db do not complete by then, we resolve to avoid blocking quit. */
+const STOP_APPXSERVER_TIMEOUT_MS = 45000;
 
 /** Max wait (ms) for stop-db.bat to finish. Ensures DB is fully stopped before upgrade/quit. */
 const STOP_DB_TIMEOUT_MS = 30000;
 
 /**
- * Stop appserver process and DB. Waits for stop-db.bat to finish (up to STOP_DB_TIMEOUT_MS) so that
- * appserver and database are fully stopped before upgrade or quit. A global timeout ensures we never
+ * Stop appxserver process and DB. Waits for stop-db.bat to finish (up to STOP_DB_TIMEOUT_MS) so that
+ * appxserver and database are fully stopped before upgrade or quit. A global timeout ensures we never
  * block quit indefinitely.
  */
-export function stopAppserver(): Promise<void> {
+export function stopAppxserver(): Promise<void> {
     return new Promise((resolve) => {
         let done = false;
         let dbTimeout: ReturnType<typeof setTimeout> | undefined;
         const t = setTimeout(() => {
-            log.warn('stopAppserver: timeout, continuing quit');
+            log.warn('stopAppxserver: timeout, continuing quit');
             finish();
-        }, STOP_APPSERVER_TIMEOUT_MS);
+        }, STOP_APPXSERVER_TIMEOUT_MS);
 
         const finish = () => {
             if (done) {
@@ -243,7 +265,7 @@ export function stopAppserver(): Promise<void> {
             });
             dbTimeout = setTimeout(() => {
                 dbTimeout = undefined;
-                log.warn('stopAppserver: stop-db timeout, continuing quit');
+                log.warn('stopAppxserver: stop-db timeout, continuing quit');
                 try {
                     child.kill();
                 } catch {
@@ -253,27 +275,29 @@ export function stopAppserver(): Promise<void> {
             }, STOP_DB_TIMEOUT_MS);
         };
 
-        if (appserver?.pid) {
-            const pid = appserver.pid;
-            appserver = undefined;
+        if (appxserver?.pid) {
+            const pid = appxserver.pid;
+            appxserver = undefined;
             treeKill(pid, (err) => {
                 if (err) {
-                    log.error(`Failed to kill myappx appserver process ${pid}: ${err}`);
+                    log.error(`Failed to kill myappx appxserver process ${pid}: ${err}`);
                 } else {
-                    log.info(`Successfully killed myappx appserver process ${pid}`);
+                    log.info(`Successfully killed myappx appxserver process ${pid}`);
                 }
                 try {
-                    const pidPath = path.join(workDir, APPSERVER_PID_FILE);
-                    if (fs.existsSync(pidPath)) {
-                        fs.unlinkSync(pidPath);
+                    for (const pidFile of [APPXSERVER_PID_FILE, LEGACY_APPXSERVER_PID_FILE]) {
+                        const pidPath = path.join(workDir, pidFile);
+                        if (fs.existsSync(pidPath)) {
+                            fs.unlinkSync(pidPath);
+                        }
                     }
                 } catch (e) {
-                    log.warn(`Could not remove appserver pid file: ${e}`);
+                    log.warn(`Could not remove appxserver pid file: ${e}`);
                 }
                 runStopDBAndWait();
             });
         } else {
-            log.warn('MyAppx Appserver process is not running.');
+            log.warn('MyAppx Appxserver process is not running.');
             runStopDBAndWait();
         }
     });

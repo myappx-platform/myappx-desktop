@@ -15,7 +15,7 @@ import {localizeMessage} from 'main/i18nManager';
 import CertificateStore from 'main/security/certificateStore';
 import sentryHandler from 'main/sentryHandler';
 
-import {getDeeplinkingURL, openDeepLink, resizeScreen, stopAppserver} from './utils';
+import {getDeeplinkingURL, openDeepLink, resizeScreen, stopAppxserver} from './utils';
 
 export const certificateErrorCallbacks = new Map();
 
@@ -88,7 +88,7 @@ export async function handleAppBeforeQuit(event?: Event) {
     }
 
     // Shutdown AppServer and DB; wait for completion before quitting
-    // await stopAppserver();
+    // await stopAppxserver();
 
     // Make sure tray icon gets removed if the user exits via CTRL-Q
     Tray.destroy();

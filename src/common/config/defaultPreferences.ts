@@ -49,7 +49,7 @@ const defaultPreferences: ConfigV4 = {
     darkMode: false,
     lastActiveServer: 0,
     downloadLocation: getDefaultDownloadLocation(),
-    startInFullscreen: true,
+    startInFullscreen: false,
     logLevel: 'info',
     enableMetrics: false,
     enableSentry: false,

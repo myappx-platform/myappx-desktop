@@ -10,17 +10,17 @@ const {path7za} = require('7zip-bin');
 const createVersionFile = require('./create-version-file');
 
 /**
- * Zips the contents of appserver-portable (not the folder itself) into
- * extraResources/appserver-portable.zip. Removes existing zip first if present.
+ * Zips the contents of appxserver-portable (not the folder itself) into
+ * extraResources/appxserver-portable.zip. Removes existing zip first if present.
  */
-function zipAppserverPortable() {
+function zipAppxserverPortable() {
     const projectRoot = path.resolve(__dirname, '..');
-    const sourceDir = path.join(projectRoot, 'appserver-portable');
+    const sourceDir = path.join(projectRoot, 'appxserver-portable');
     const extraResourcesDir = path.join(projectRoot, 'extraResources');
-    const zipPath = path.join(extraResourcesDir, 'appserver-portable.zip');
+    const zipPath = path.join(extraResourcesDir, 'appxserver-portable.zip');
 
     if (!fs.existsSync(sourceDir)) {
-        console.warn('beforePack: appserver-portable directory not found, skipping zip');
+        console.warn('beforePack: appxserver-portable directory not found, skipping zip');
         return;
     }
 
@@ -32,17 +32,17 @@ function zipAppserverPortable() {
         fs.mkdirSync(extraResourcesDir, {recursive: true});
     }
 
-    // Add only the contents of appserver-portable (*), cwd=sourceDir so the zip root
-    // contains appserver/, conf/, *.bat, etc., not an appserver-portable/ wrapper.
+    // Add only the contents of appxserver-portable (*), cwd=sourceDir so the zip root
+    // contains appxserver/, conf/, *.bat, etc., not an appxserver-portable/ wrapper.
     const result = spawnSync(path7za, ['a', '-tzip', zipPath, '*'], {
         cwd: sourceDir,
     });
 
     if (result.status !== 0) {
         const err = [result.stderr, result.stdout].filter(Boolean).map((b) => b.toString()).join('\n');
-        throw new Error(`Failed to create appserver-portable.zip: ${err}`);
+        throw new Error(`Failed to create appxserver-portable.zip: ${err}`);
     }
-    console.log('beforePack: appserver-portable.zip created in extraResources');
+    console.log('beforePack: appxserver-portable.zip created in extraResources');
 }
 
 exports.default = async function beforePack(context) {
@@ -56,6 +56,6 @@ exports.default = async function beforePack(context) {
     // Create version file for persistent resources tracking
     createVersionFile();
 
-    // Zip appserver-portable into extraResources for packaging
-    zipAppserverPortable();
+    // Zip appxserver-portable into extraResources for packaging
+    zipAppxserverPortable();
 };

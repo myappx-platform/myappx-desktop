@@ -11,6 +11,16 @@ import {Logger} from 'common/log';
 
 const log = new Logger('PersistentResources');
 
+const LEGACY_PORTABLE_DIR = 'appserver-portable';
+const PORTABLE_DIR = 'appxserver-portable';
+const LEGACY_PORTABLE_ZIP = 'appserver-portable.zip';
+const PORTABLE_ZIP = 'appxserver-portable.zip';
+const LEGACY_SERVER_DIR = 'appserver';
+const SERVER_DIR = 'appxserver';
+
+const PORTABLE_ZIP_NAMES = [PORTABLE_ZIP, LEGACY_PORTABLE_ZIP];
+const PORTABLE_DIR_NAMES = [PORTABLE_DIR, LEGACY_PORTABLE_DIR];
+
 /**
  * Get the persistent resources directory in user data folder
  * This directory survives app reinstallation
@@ -68,20 +78,58 @@ function readVersionFile(filePath: string): string | undefined {
     return undefined;
 }
 
-function migratePgdataFromBackup(backupAppserverDir: string, newAppserverDir: string): void {
-    // Support common layouts: appserver-portable/pgdata and appserver-portable/data/pgdata
+function resolvePortableZipPath(installPath: string): string | undefined {
+    for (const zipName of PORTABLE_ZIP_NAMES) {
+        const zipPath = path.join(installPath, zipName);
+        if (fs.existsSync(zipPath)) {
+            return zipPath;
+        }
+    }
+    return undefined;
+}
+
+function isPortableZipName(name: string): boolean {
+    return PORTABLE_ZIP_NAMES.includes(name);
+}
+
+/**
+ * Rename legacy appserver-portable to appxserver-portable when upgrading existing installs.
+ */
+function migrateLegacyPortableDir(persistentPath: string): void {
+    const legacy = path.join(persistentPath, LEGACY_PORTABLE_DIR);
+    const current = path.join(persistentPath, PORTABLE_DIR);
+    if (fs.existsSync(legacy) && !fs.existsSync(current)) {
+        fs.renameSync(legacy, current);
+        log.info(`Migrated legacy ${LEGACY_PORTABLE_DIR}/ to ${PORTABLE_DIR}/`);
+    }
+}
+
+/**
+ * Rename legacy appserver/ to appxserver/ inside the portable work directory.
+ */
+function migrateLegacyServerDir(workDir: string): void {
+    const legacy = path.join(workDir, LEGACY_SERVER_DIR);
+    const current = path.join(workDir, SERVER_DIR);
+    if (fs.existsSync(legacy) && !fs.existsSync(current)) {
+        fs.renameSync(legacy, current);
+        log.info(`Migrated legacy ${LEGACY_SERVER_DIR}/ to ${SERVER_DIR}/ in ${workDir}`);
+    }
+}
+
+function migratePgdataFromBackup(backupAppxserverDir: string, newAppxserverDir: string): void {
+    // Support common layouts: appxserver-portable/pgdata and appxserver-portable/data/pgdata
     const candidateRelPaths = [
         'pgdata',
         path.join('data', 'pgdata'),
     ];
 
     for (const rel of candidateRelPaths) {
-        const srcPgdata = path.join(backupAppserverDir, rel);
+        const srcPgdata = path.join(backupAppxserverDir, rel);
         if (!fs.existsSync(srcPgdata) || !fs.lstatSync(srcPgdata).isDirectory()) {
             continue;
         }
 
-        const destPgdata = path.join(newAppserverDir, rel);
+        const destPgdata = path.join(newAppxserverDir, rel);
         if (fs.existsSync(destPgdata)) {
             try {
                 fs.rmSync(destPgdata, {recursive: true});
@@ -101,7 +149,7 @@ function migratePgdataFromBackup(backupAppserverDir: string, newAppserverDir: st
         return;
     }
 
-    log.info(`No pgdata directory found in backup appserver at ${backupAppserverDir}; skipping pgdata migration`);
+    log.info(`No pgdata directory found in backup appxserver at ${backupAppxserverDir}; skipping pgdata migration`);
 }
 
 // Patterns for selective sync: update (overwrite) vs preserve (keep user data)
@@ -131,7 +179,7 @@ function shouldUpdate(name: string): boolean {
 
 /**
  * Sync directory from src to dest with preserve/update rules.
- * @param skipEntry - if returns true for a name, that entry is skipped (e.g. appserver-portable.zip)
+ * @param skipEntry - if returns true for a name, that entry is skipped (e.g. appxserver-portable.zip)
  */
 function syncDirectoryWithPreserve(
     srcDir: string,
@@ -207,7 +255,7 @@ function shouldUpdateResources(installPath: string, persistentPath: string): boo
 /**
  * Selectively update files from installation to persistent directory
  * This preserves user data files while updating executable/system files.
- * Skips appserver-portable.zip (handled by extractAppserverZip).
+ * Skips appxserver-portable.zip (handled by extractAppxserverZip).
  */
 function updateResources(installPath: string, persistentPath: string): void {
     if (!fs.existsSync(installPath)) {
@@ -215,17 +263,17 @@ function updateResources(installPath: string, persistentPath: string): void {
         return;
     }
     log.info(`Updating resources from ${installPath} to ${persistentPath}`);
-    syncDirectoryWithPreserve(installPath, persistentPath, (n) => n === 'appserver-portable.zip');
+    syncDirectoryWithPreserve(installPath, persistentPath, (n) => isPortableZipName(n));
     log.info('Resources update completed');
 }
 
 /**
- * Extract appserver-portable.zip from install path to persistent-resources/appserver-portable.
- * Handles both zip with root "appserver-portable" folder and zip with loose files.
+ * Extract appxserver-portable.zip from install path to persistent-resources/appxserver-portable.
+ * Handles zip with root wrapper folder or loose files at zip root.
  */
-async function extractAppserverZip(installPath: string, persistentPath: string): Promise<void> {
-    const zipPath = path.join(installPath, 'appserver-portable.zip');
-    if (!fs.existsSync(zipPath)) {
+async function extractAppxserverZip(installPath: string, persistentPath: string): Promise<void> {
+    const zipPath = resolvePortableZipPath(installPath);
+    if (!zipPath) {
         return;
     }
     const extractDir = path.join(persistentPath, '.extract-tmp');
@@ -235,16 +283,22 @@ async function extractAppserverZip(installPath: string, persistentPath: string):
     fs.mkdirSync(extractDir, {recursive: true});
 
     try {
-        log.info(`Extracting appserver-portable.zip to ${extractDir}`);
+        log.info(`Extracting ${path.basename(zipPath)} to ${extractDir}`);
         await extract(zipPath, {dir: extractDir});
 
         const entries = fs.readdirSync(extractDir, {withFileTypes: true});
-        const appserverDir = path.join(extractDir, 'appserver-portable');
-        const contentPath = entries.length === 1 && entries[0].isDirectory() && entries[0].name === 'appserver-portable' ? appserverDir : extractDir;
+        let contentPath = extractDir;
+        if (entries.length === 1 && entries[0].isDirectory()) {
+            const wrapperName = entries[0].name;
+            if (PORTABLE_DIR_NAMES.includes(wrapperName)) {
+                contentPath = path.join(extractDir, wrapperName);
+            }
+        }
 
-        const destAppserver = path.join(persistentPath, 'appserver-portable');
-        syncDirectoryWithPreserve(contentPath, destAppserver);
-        log.info('appserver-portable.zip extracted and synced to persistent-resources');
+        const destAppxserver = path.join(persistentPath, PORTABLE_DIR);
+        syncDirectoryWithPreserve(contentPath, destAppxserver);
+        migrateLegacyServerDir(destAppxserver);
+        log.info(`${path.basename(zipPath)} extracted and synced to persistent-resources`);
     } finally {
         if (fs.existsSync(extractDir)) {
             fs.rmSync(extractDir, {recursive: true});
@@ -255,8 +309,8 @@ async function extractAppserverZip(installPath: string, persistentPath: string):
 /**
  * Initialize persistent resources
  * Called during app startup to ensure resources are available in user data directory.
- * Extracts appserver-portable.zip from extraResources to persistent-resources/appserver-portable
- * when the zip exists and (appserver-portable is missing or an update is needed).
+ * Extracts appxserver-portable.zip from extraResources to persistent-resources/appxserver-portable
+ * when the zip exists and (appxserver-portable is missing or an update is needed).
  */
 export async function initializePersistentResources(): Promise<void> {
     const installPath = getInstallResourcesPath();
@@ -275,8 +329,10 @@ export async function initializePersistentResources(): Promise<void> {
         fs.mkdirSync(persistentPath, {recursive: true});
     }
 
-    const zipPath = path.join(installPath, 'appserver-portable.zip');
-    const appserverDest = path.join(persistentPath, 'appserver-portable');
+    migrateLegacyPortableDir(persistentPath);
+
+    const zipPath = resolvePortableZipPath(installPath);
+    const appxserverDest = path.join(persistentPath, PORTABLE_DIR);
 
     const installVersionFile = path.join(installPath, '.version');
     const persistentVersionFile = path.join(persistentPath, '.version');
@@ -286,36 +342,36 @@ export async function initializePersistentResources(): Promise<void> {
 
     // Log version state for diagnosing missing backup (e.g. when .version is missing on one side)
     log.info(`Version: install=${installVersion ?? 'none'}, persistent=${persistentVersion ?? 'none'}, isUpgrade=${isUpgrade}`);
-    log.info(`Paths: appserverDest exists=${fs.existsSync(appserverDest)}, zipPath exists=${fs.existsSync(zipPath)}`);
+    log.info(`Paths: appxserverDest exists=${fs.existsSync(appxserverDest)}, zipPath exists=${Boolean(zipPath)}`);
 
-    let backupAppserverDir: string | undefined;
+    let backupAppxserverDir: string | undefined;
 
-    // Backup when: (1) we have existing appserver-portable, (2) we have zip to extract, and
+    // Backup when: (1) we have existing appxserver-portable, (2) we have zip to extract, and
     // (3) either version upgrade is detected OR we're about to overwrite (needUpdateResources).
     // This ensures backup even if persistent .version was never written (e.g. by an older build).
     const willOverwrite = shouldUpdateResources(installPath, persistentPath);
-    const shouldBackup = fs.existsSync(appserverDest) &&
-        fs.existsSync(zipPath) &&
+    const shouldBackup = fs.existsSync(appxserverDest) &&
+        Boolean(zipPath) &&
         (isUpgrade || (Boolean(installVersion) && willOverwrite));
 
     if (shouldBackup) {
-        // Backup existing appserver-portable with original version suffix
+        // Backup existing appxserver-portable with original version suffix
         const suffix = persistentVersion || 'backup';
-        let candidate = path.join(persistentPath, `appserver-portable-${suffix}`);
+        let candidate = path.join(persistentPath, `${PORTABLE_DIR}-${suffix}`);
         let counter = 1;
         while (fs.existsSync(candidate)) {
-            candidate = path.join(persistentPath, `appserver-portable-${suffix}-${counter}`);
+            candidate = path.join(persistentPath, `${PORTABLE_DIR}-${suffix}-${counter}`);
             counter++;
         }
 
         try {
-            fs.renameSync(appserverDest, candidate);
-            backupAppserverDir = candidate;
-            log.info(`Backed up existing appserver-portable to ${candidate}`);
+            fs.renameSync(appxserverDest, candidate);
+            backupAppxserverDir = candidate;
+            log.info(`Backed up existing ${PORTABLE_DIR} to ${candidate}`);
 
             // Mark that we need to run DB migration on next startup
-            process.env.ENV_APPSERVER_MIGRATION = 'True';
-            log.info('ENV_APPSERVER_MIGRATION set to True for appserver upgrade migration');
+            process.env.ENV_APPXSERVER_MIGRATION = 'True';
+            log.info('ENV_APPXSERVER_MIGRATION set to True for appxserver upgrade migration');
         } catch (err: unknown) {
             const code = err && typeof err === 'object' && 'code' in err ? (err as NodeJS.ErrnoException).code : '';
 
@@ -324,30 +380,32 @@ export async function initializePersistentResources(): Promise<void> {
                 log.info(`Retrying backup after brief delay (${code})`);
                 await new Promise((r) => setTimeout(r, 500));
                 try {
-                    fs.renameSync(appserverDest, candidate);
-                    backupAppserverDir = candidate;
-                    log.info(`Backed up existing appserver-portable to ${candidate}`);
+                    fs.renameSync(appxserverDest, candidate);
+                    backupAppxserverDir = candidate;
+                    log.info(`Backed up existing ${PORTABLE_DIR} to ${candidate}`);
 
-                    process.env.ENV_APPSERVER_MIGRATION = 'True';
+                    process.env.ENV_APPXSERVER_MIGRATION = 'True';
                 } catch (retryErr) {
-                    log.error(`Failed to backup existing appserver-portable (retry): ${retryErr}`);
+                    log.error(`Failed to backup existing ${PORTABLE_DIR} (retry): ${retryErr}`);
                 }
             } else {
-                log.error(`Failed to backup existing appserver-portable: ${err}`);
+                log.error(`Failed to backup existing ${PORTABLE_DIR}: ${err}`);
             }
         }
     }
 
-    const needExtract = fs.existsSync(zipPath) &&
-        (!fs.existsSync(appserverDest) || shouldUpdateResources(installPath, persistentPath));
+    const needExtract = Boolean(zipPath) &&
+        (!fs.existsSync(appxserverDest) || shouldUpdateResources(installPath, persistentPath));
 
     if (needExtract) {
-        log.info('Extracting appserver-portable.zip to persistent-resources');
-        await extractAppserverZip(installPath, persistentPath);
+        log.info(`Extracting ${path.basename(zipPath!)} to persistent-resources`);
+        await extractAppxserverZip(installPath, persistentPath);
 
-        if (backupAppserverDir && fs.existsSync(appserverDest)) {
-            migratePgdataFromBackup(backupAppserverDir, appserverDest);
+        if (backupAppxserverDir && fs.existsSync(appxserverDest)) {
+            migratePgdataFromBackup(backupAppxserverDir, appxserverDest);
         }
+    } else if (fs.existsSync(appxserverDest)) {
+        migrateLegacyServerDir(appxserverDest);
     }
 
     if (shouldUpdateResources(installPath, persistentPath)) {
@@ -359,9 +417,9 @@ export async function initializePersistentResources(): Promise<void> {
 }
 
 /**
- * Get the working directory for appserver
- * This returns the path to the persistent appserver-portable directory
+ * Get the working directory for appxserver
+ * This returns the path to the persistent appxserver-portable directory
  */
-export function getAppserverWorkDir(): string {
-    return path.join(getPersistentResourcesPath(), 'appserver-portable');
+export function getAppxserverWorkDir(): string {
+    return path.join(getPersistentResourcesPath(), PORTABLE_DIR);
 }
