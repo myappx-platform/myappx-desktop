@@ -6,6 +6,16 @@ import {app, dialog} from 'electron';
 import MainWindow from 'app/mainWindow/mainWindow';
 import WebContentsManager from 'app/views/webContentsManager';
 import ServerManager from 'common/servers/serverManager';
+
+jest.mock('main/autoUpdater', () => ({
+    __esModule: true,
+    default: {
+        checkForUpdates: jest.fn(),
+        handleDownload: jest.fn(),
+        handleUpdate: jest.fn(),
+    },
+}));
+
 import {handleAppWillFinishLaunching, handleAppCertificateError, certificateErrorCallbacks} from 'main/app/app';
 import {getDeeplinkingURL, openDeepLink} from 'main/app/utils';
 import CertificateStore from 'main/security/certificateStore';

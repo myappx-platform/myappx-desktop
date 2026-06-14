@@ -24,10 +24,10 @@ describe('main/i18nManager', () => {
     it('should set locale only if available', () => {
         const i18n = new I18nManager();
 
-        expect(i18n.setLocale('fr')).toBe(true);
-        expect(i18n.currentLanguage.value).toBe('fr');
+        expect(i18n.setLocale('zh-CN')).toBe(true);
+        expect(i18n.currentLanguage.value).toBe('zh-CN');
         expect(i18n.setLocale('zz')).toBe(false);
-        expect(i18n.currentLanguage.value).toBe('fr');
+        expect(i18n.currentLanguage.value).toBe('zh-CN');
     });
 });
 

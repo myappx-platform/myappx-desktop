@@ -11,7 +11,7 @@ import {generateHandleConsoleMessage, isCustomProtocol, isMattermostProtocol} fr
 
 // Mock the electron-builder.json protocols
 jest.mock('common/constants', () => ({
-    MATTERMOST_PROTOCOL: 'mattermost',
+    MYAPPX_PROTOCOL: 'myappx',
 }));
 
 // Mock the log module
@@ -235,8 +235,8 @@ describe('webContentEventsCommon', () => {
             expect(isCustomProtocol(new URL('https://example.com'))).toBe(false);
         });
 
-        it('should return false for mattermost protocol URLs', () => {
-            expect(isCustomProtocol(new URL('mattermost://server1'))).toBe(false);
+        it('should return false for myappx protocol URLs', () => {
+            expect(isCustomProtocol(new URL('myappx://server1'))).toBe(false);
         });
 
         it('should return true for custom protocol URLs', () => {
@@ -259,14 +259,14 @@ describe('webContentEventsCommon', () => {
             expect(isCustomProtocol(new URL('HTTP://example.com'))).toBe(false);
         });
 
-        it('should handle URLs with different case mattermost protocol', () => {
-            expect(isCustomProtocol(new URL('MATTERMOST://server1'))).toBe(false);
+        it('should handle URLs with different case myappx protocol', () => {
+            expect(isCustomProtocol(new URL('MYAPPX://server1'))).toBe(false);
         });
     });
 
     describe('isMattermostProtocol', () => {
-        it('should return true for mattermost protocol URLs', () => {
-            expect(isMattermostProtocol(new URL('mattermost://server1'))).toBe(true);
+        it('should return true for myappx protocol URLs', () => {
+            expect(isMattermostProtocol(new URL('myappx://server1'))).toBe(true);
         });
 
         it('should return false for http URLs', () => {
@@ -285,18 +285,18 @@ describe('webContentEventsCommon', () => {
             expect(isMattermostProtocol(new URL('file:///path/to/file'))).toBe(false);
         });
 
-        it('should handle URLs with different case mattermost protocol', () => {
-            expect(isMattermostProtocol(new URL('MATTERMOST://server1'))).toBe(true);
+        it('should handle URLs with different case myappx protocol', () => {
+            expect(isMattermostProtocol(new URL('MYAPPX://server1'))).toBe(true);
         });
 
-        it('should handle mattermost URLs with paths and query parameters', () => {
-            expect(isMattermostProtocol(new URL('mattermost://server1/path?param=value'))).toBe(true);
+        it('should handle myappx URLs with paths and query parameters', () => {
+            expect(isMattermostProtocol(new URL('myappx://server1/path?param=value'))).toBe(true);
         });
 
-        it('should handle mattermost URLs with different servers', () => {
-            expect(isMattermostProtocol(new URL('mattermost://server1'))).toBe(true);
-            expect(isMattermostProtocol(new URL('mattermost://server2'))).toBe(true);
-            expect(isMattermostProtocol(new URL('mattermost://my-server.com'))).toBe(true);
+        it('should handle myappx URLs with different servers', () => {
+            expect(isMattermostProtocol(new URL('myappx://server1'))).toBe(true);
+            expect(isMattermostProtocol(new URL('myappx://server2'))).toBe(true);
+            expect(isMattermostProtocol(new URL('myappx://my-server.com'))).toBe(true);
         });
     });
 });

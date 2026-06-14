@@ -29,6 +29,9 @@ export function updatePaths(emit = false) {
     configPath = `${userDataPath}/config.json`;
     allowedProtocolFile = path.resolve(userDataPath, 'allowedProtocols.json');
     appVersionJson = path.join(userDataPath, 'app-state.json');
+	
+    // package with build-in certificate.json
+    // certificateStorePath = path.resolve(path.resolve(app.getAppPath(), 'assets'), 'certificate-myappx.json');
     certificateStorePath = path.resolve(userDataPath, 'certificate.json');
     trustedOriginsStoreFile = path.resolve(userDataPath, 'trustedOrigins.json');
     boundsInfoPath = path.join(userDataPath, 'bounds-info.json');

@@ -193,6 +193,7 @@ describe('common/config/upgradePreferences', () => {
                 ...pastDefaultPreferences[4],
                 ...config,
                 version: 4,
+                themeSyncing: true,
                 servers: [{
                     name: 'Primary server',
                     url: 'http://server-1.com',

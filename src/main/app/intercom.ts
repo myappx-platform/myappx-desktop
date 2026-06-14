@@ -30,10 +30,10 @@ export function handleAppVersion() {
     };
 }
 
-export function handleQuit(e: IpcMainEvent, reason: string, stack: string) {
+export async function handleQuit(e: IpcMainEvent, reason: string, stack: string) {
     log.error(`Exiting App. Reason: ${reason}`);
     log.info(`Stacktrace:\n${stack}`);
-    handleAppBeforeQuit();
+    await handleAppBeforeQuit();
     app.quit();
 }
 
@@ -95,7 +95,7 @@ export function handleMainWindowIsShown() {
 export function handleWelcomeScreenModal(prefillURL?: string) {
     log.debug('handleWelcomeScreenModal');
 
-    const html = 'mattermost-desktop://renderer/welcomeScreen.html';
+    const html = 'myappx-desktop://renderer/welcomeScreen.html';
 
     const preload = getLocalPreload('internalAPI.js');
 
@@ -193,7 +193,7 @@ export function handleShowSettingsModal() {
 
     ModalManager.addPriorityModal(
         ModalConstants.SETTINGS_MODAL,
-        'mattermost-desktop://renderer/settings.html',
+        'myappx-desktop://renderer/settings.html',
         getLocalPreload('internalAPI.js'),
         null,
         mainWindow,

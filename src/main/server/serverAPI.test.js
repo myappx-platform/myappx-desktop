@@ -153,7 +153,7 @@ describe('main/server/serverAPI', () => {
         session.defaultSession.cookies.get.mockImplementation(() => ([
             {
                 domain: 'http://server-1.com',
-                name: 'MMUSERID',
+                name: 'MYAPPXUSERID',
             },
         ]));
         const successFn = jest.fn();
@@ -169,15 +169,15 @@ describe('main/server/serverAPI', () => {
         session.defaultSession.cookies.get.mockImplementation(() => ([
             {
                 domain: 'http://server-1.com',
-                name: 'MMUSERID',
+                name: 'MYAPPXUSERID',
             },
             {
                 domain: 'http://server-1.com',
-                name: 'MMCSRF',
+                name: 'MYAPPXCSRF',
             },
             {
                 domain: 'http://server-1.com',
-                name: 'MMAUTHTOKEN',
+                name: 'MYAPPXAUTHTOKEN',
             },
         ]));
         const successFn = jest.fn();

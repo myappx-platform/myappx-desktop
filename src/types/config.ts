@@ -128,6 +128,7 @@ export type BuildConfig = {
     academyLink: string;
     upgradeLink: string;
     enableServerManagement: boolean;
+    enableAutoUpdater: boolean;
     enableUpdateNotifications: boolean;
     updateNotificationURL: string;
     macAppStoreUpdateURL: string;
@@ -141,6 +142,7 @@ export type BuildConfig = {
 export type RegistryConfig = {
     servers: Server[];
     enableServerManagement: boolean;
+    enableAutoUpdater: boolean;
     enableUpdateNotifications: boolean;
 }
 

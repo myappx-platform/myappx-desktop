@@ -4,7 +4,7 @@ import path from 'path';
 
 import type {Event, WebContentsConsoleMessageEventParams} from 'electron';
 
-import {MATTERMOST_PROTOCOL} from 'common/constants';
+import {MYAPPX_PROTOCOL} from 'common/constants';
 import type {Logger} from 'common/log';
 import {getLevel} from 'common/log';
 import {parseURL} from 'common/utils/url';
@@ -39,9 +39,9 @@ function sanitizeMessage(sourceURL: string, message: string) {
 }
 
 export function isCustomProtocol(url: URL) {
-    return url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== `${MATTERMOST_PROTOCOL}:`;
+    return url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== `${MYAPPX_PROTOCOL}:`;
 }
 
 export function isMattermostProtocol(url: URL) {
-    return url.protocol === `${MATTERMOST_PROTOCOL}:`;
+    return url.protocol === `${MYAPPX_PROTOCOL}:`;
 }

@@ -21,6 +21,8 @@ const codeDefinitions = {
     __SENTRY_DSN__: JSON.stringify(process.env.MM_DESKTOP_BUILD_SENTRYDSN || ''),
 };
 codeDefinitions['process.env.NODE_ENV'] = JSON.stringify(process.env.NODE_ENV);
+// whether the app can perform in-app upgrades; defaults to false unless explicitly enabled
+codeDefinitions.__CAN_UPGRADE__ = JSON.stringify(process.env.CAN_UPGRADE === 'true');
 if (isTest) {
     codeDefinitions['process.resourcesPath'] = 'process.env.RESOURCES_PATH';
 }

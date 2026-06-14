@@ -1,6 +1,15 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+jest.mock('main/autoUpdater', () => ({
+    __esModule: true,
+    default: {
+        checkForUpdates: jest.fn(),
+        handleDownload: jest.fn(),
+        handleUpdate: jest.fn(),
+    },
+}));
+
 import os from 'os';
 import path from 'path';
 

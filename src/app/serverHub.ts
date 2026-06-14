@@ -102,7 +102,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<{prefillURL?: string}, Server>(
             ModalConstants.NEW_SERVER_MODAL,
-            'mattermost-desktop://renderer/newServer.html',
+            'myappx-desktop://renderer/newServer.html',
             getLocalPreload('internalAPI.js'),
             {prefillURL},
             mainWindow,
@@ -143,7 +143,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<UniqueServerWithPermissions, {server: Server; permissions: Permissions}>(
             ModalConstants.EDIT_SERVER_MODAL,
-            'mattermost-desktop://renderer/editServer.html',
+            'myappx-desktop://renderer/editServer.html',
             getLocalPreload('internalAPI.js'),
             {server: server.toUniqueServer(), permissions: PermissionsManager.getForServer(server) ?? {}},
             mainWindow);
@@ -175,7 +175,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<null, boolean>(
             ModalConstants.REMOVE_SERVER_MODAL,
-            'mattermost-desktop://renderer/removeServer.html',
+            'myappx-desktop://renderer/removeServer.html',
             getLocalPreload('internalAPI.js'),
             null,
             mainWindow,

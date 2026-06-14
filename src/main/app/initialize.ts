@@ -22,6 +22,8 @@ import {
     NOTIFY_MENTION,
     GET_AVAILABLE_SPELL_CHECKER_LANGUAGES,
     USER_ACTIVITY_UPDATE,
+    START_UPGRADE,
+    START_UPDATE_DOWNLOAD,
     PING_DOMAIN,
     OPEN_APP_MENU,
     GET_CONFIGURATION,
@@ -40,7 +42,7 @@ import {
     SERVER_URL_CHANGED,
 } from 'common/communication';
 import Config from 'common/config';
-import {MATTERMOST_PROTOCOL} from 'common/constants';
+import {MYAPPX_PROTOCOL} from 'common/constants';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
@@ -49,6 +51,7 @@ import {ipcValidate} from 'common/Validator';
 import ViewManager from 'common/views/viewManager';
 import AppVersionManager from 'main/AppVersionManager';
 import AutoLauncher from 'main/AutoLauncher';
+import updateManager from 'main/autoUpdater';
 import {configPath, updatePaths} from 'main/constants';
 import CriticalErrorHandler from 'main/CriticalErrorHandler';
 import DeveloperMode from 'main/developerMode';
@@ -58,12 +61,13 @@ import NonceManager from 'main/nonceManager';
 import {getDoNotDisturb} from 'main/notifications';
 import parseArgs from 'main/ParseArgs';
 import PerformanceMonitor from 'main/performanceMonitor';
+import {initializePersistentResources} from 'main/persistentResources';
 import secureStorage from 'main/secureStorage';
 import AllowProtocolDialog from 'main/security/allowProtocolDialog';
 import PermissionsManager from 'main/security/permissionsManager';
 import PreAuthManager from 'main/security/preAuthManager';
+import {applyLocalPreAuthSecretToServers} from 'main/security/preAuthSecretLoader';
 import sentryHandler from 'main/sentryHandler';
-import updateNotifier from 'main/updateNotifier';
 import UserActivityMonitor from 'main/UserActivityMonitor';
 
 import {
@@ -101,6 +105,8 @@ import {
     updateSpellCheckerLocales,
     wasUpdated,
     updateServerInfos,
+    ensureOrphanAppxserverAndDbStopped,
+    startAppxserver,
 } from './utils';
 import {
     handleDoubleClick,
@@ -121,6 +127,35 @@ export async function initialize() {
     await initializeConfig();
     initializeAppEventListeners();
     initializeBeforeAppReady();
+
+    // Kill any orphan appxserver/DB from prior run before touching appxserver-portable.
+    // This avoids EPERM when renaming (backup) appxserver-portable on Windows.
+    // await ensureOrphanAppxserverAndDbStopped();
+
+    // Initialize persistent resources (must be done before starting AppxServer)
+    // This ensures extraResources are copied to user data directory and survive reinstallation.
+    // Extracts appxserver-portable.zip from extraResources to persistent-resources/appxserver-portable.
+    // await initializePersistentResources();
+
+    // start AppxServer (DB start is fire-and-forget; 6s delay allows DB to become ready)
+    // startAppxserver();
+    // await new Promise((resolve) => setTimeout(resolve, 6000));
+
+    // https://stackoverflow.com/questions/57676652/how-to-import-a-self-signed-certificate-in-electron-application
+
+    // app.commandLine.appendSwitch('client-certificate',
+    //     path.resolve(path.resolve(app.getAppPath(), 'assets'), 'client.crt'));
+
+    // log.info('IMPORT CERTIFICATE');
+    // app.importCertificate({
+    //     certificate: path.resolve(path.resolve(app.getAppPath(), 'assets'), 'client.p12'),
+    //     password: '123456',
+    // }, (result) => {
+    //     if (result === 0) {
+    //         log.log('IMPORTED');
+    //     }
+    //     log.log(result);
+    // });
 
     // wait for registry config data to load and app ready event
     await Promise.all([
@@ -174,7 +209,7 @@ async function initializeConfig() {
 
             resolve();
         });
-        Config.init(configPath, app.name);
+        Config.init(configPath, app.name, app.getAppPath());
         ipcMain.on(UPDATE_PATHS, () => {
             log.debug('Config.UPDATE_PATHS');
 
@@ -202,6 +237,14 @@ function initializeBeforeAppReady() {
         log.error('No config loaded');
         return;
     }
+
+    // Configure certificate handling for enterprise intranet environments
+    // This must be done before app.ready() event
+    // For intranet applications with self-signed certificates, ignore certificate errors
+    // Note: This is acceptable for internal-only applications that don't access the internet
+    app.commandLine.appendSwitch('ignore-certificate-errors');
+    app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
+    log.info('[App.Initialize] Certificate error handling configured for intranet environment');
 
     if (process.env.NODE_ENV !== 'test') {
         app.enableSandbox();
@@ -233,9 +276,9 @@ function initializeBeforeAppReady() {
     AllowProtocolDialog.init();
 
     if (isDev && process.env.NODE_ENV !== 'test') {
-        app.setAsDefaultProtocolClient('mattermost-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
+        app.setAsDefaultProtocolClient('myappx-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
     } else {
-        app.setAsDefaultProtocolClient(MATTERMOST_PROTOCOL);
+        app.setAsDefaultProtocolClient(MYAPPX_PROTOCOL);
     }
 
     if (process.platform === 'darwin' || process.platform === 'win32') {
@@ -243,7 +286,7 @@ function initializeBeforeAppReady() {
     }
 
     protocol.registerSchemesAsPrivileged([
-        {scheme: 'mattermost-desktop', privileges: {standard: true}},
+        {scheme: 'myappx-desktop', privileges: {standard: true}},
     ]);
 }
 
@@ -266,6 +309,8 @@ function initializeInterCommunicationEventListeners() {
     ipcMain.on(QUIT, handleQuit);
 
     ipcMain.handle(GET_AVAILABLE_SPELL_CHECKER_LANGUAGES, () => session.defaultSession.availableSpellCheckerLanguages);
+    ipcMain.on(START_UPDATE_DOWNLOAD, handleStartDownload);
+    ipcMain.on(START_UPGRADE, handleStartUpgrade);
     ipcMain.handle(PING_DOMAIN, handlePingDomain);
     ipcMain.handle(GET_CONFIGURATION, handleGetConfiguration);
     ipcMain.handle(GET_LOCAL_CONFIGURATION, handleGetLocalConfiguration);
@@ -298,7 +343,7 @@ async function initializeAfterAppReady() {
     // Block all NTLM/Negotiate requests by default
     session.defaultSession.allowNTLMCredentialsForDomains('');
 
-    protocol.handle('mattermost-desktop', (request: Request) => {
+    protocol.handle('myappx-desktop', (request: Request) => {
         const url = parseURL(request.url);
         if (!url) {
             return new Response('bad', {status: 400});
@@ -329,24 +374,11 @@ async function initializeAfterAppReady() {
 
     MainWindow.show();
 
-    const updateServerInfo = (serverId: string) => {
-        if (serverId) {
-            updateServerInfos([ServerManager.getServer(serverId)!]);
-        }
-    };
-    ServerManager.on(SERVER_ADDED, updateServerInfo);
-    ServerManager.on(SERVER_URL_CHANGED, updateServerInfo);
-    ServerManager.on(SERVER_PRE_AUTH_SECRET_CHANGED, updateServerInfo);
-
-    ServerManager.on(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
-    ServerManager.init();
-    ServerManager.off(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
-
-    app.setAppUserModelId('Mattermost.Desktop'); // Use explicit AppUserModelID
+    app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const url = parseURL(details.url);
-        if (url?.protocol === 'mattermost-desktop:' && url?.pathname.endsWith('html')) {
+        if (url?.protocol === 'myappx-desktop:' && url?.pathname.endsWith('html')) {
             callback({
                 responseHeaders: {
                     ...details.responseHeaders,
@@ -364,31 +396,44 @@ async function initializeAfterAppReady() {
         downloadsManager.webRequestOnHeadersReceivedHandler(details, callback);
     });
 
-    // Inject X-Mattermost-Preauth-Secret header for all server requests
+    // Inject X-MyAppx-Preauth-Secret header for all server requests (must register before ServerManager.init loads tabs)
     defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
         try {
             const server = ServerManager.lookupServerByURL(details.url);
 
-            if (server && server.preAuthSecret) {
-                const secret = server.preAuthSecret;
-
-                if (!('X-Mattermost-Preauth-Secret' in details.requestHeaders)) {
-                    const requestHeaders = {
-                        ...details.requestHeaders,
-                        'X-Mattermost-Preauth-Secret': secret,
-                    };
-
-                    callback({requestHeaders});
-                    return;
+            if (server?.preAuthSecret) {
+                const requestHeaders = {...details.requestHeaders};
+                for (const key of Object.keys(requestHeaders)) {
+                    if (key.toLowerCase() === 'x-myappx-preauth-secret') {
+                        delete requestHeaders[key];
+                    }
                 }
+                requestHeaders['X-MyAppx-Preauth-Secret'] = server.preAuthSecret;
+                callback({requestHeaders});
+                return;
             }
         } catch (error) {
             log.debug('Error injecting preauth secret header:', {error});
         }
 
-        // If no secret found or error occurred, proceed with original headers
         callback({requestHeaders: details.requestHeaders});
     });
+
+    const updateServerInfo = (serverId: string) => {
+        if (serverId) {
+            updateServerInfos([ServerManager.getServer(serverId)!]);
+        }
+    };
+    ServerManager.on(SERVER_ADDED, updateServerInfo);
+    ServerManager.on(SERVER_URL_CHANGED, updateServerInfo);
+    ServerManager.on(SERVER_PRE_AUTH_SECRET_CHANGED, updateServerInfo);
+
+    // Run before ViewManager's SERVER_ADDED handler so preAuthSecret exists before the first loadURL
+    ServerManager.prependListener(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
+    ServerManager.init();
+    ServerManager.off(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
+
+    await applyLocalPreAuthSecretToServers();
 
     if (process.platform !== 'darwin') {
         defaultSession.on('spellcheck-dictionary-download-failure', (event, lang) => {
@@ -417,7 +462,7 @@ async function initializeAfterAppReady() {
             log.debug('checkForUpdates');
             if (Config.canUpgrade && Config.autoCheckForUpdates) {
                 setTimeout(() => {
-                    updateNotifier.checkForUpdates(false);
+                    updateManager.checkForUpdates(false);
                 }, 5000);
             } else {
                 log.info(`Autoupgrade disabled: ${Config.canUpgrade}`);
@@ -425,7 +470,7 @@ async function initializeAfterAppReady() {
         });
     } else if (Config.canUpgrade && Config.autoCheckForUpdates) {
         setTimeout(() => {
-            updateNotifier.checkForUpdates(false);
+            updateManager.checkForUpdates(false);
         }, 5000);
     } else {
         log.info(`Autoupgrade disabled: ${Config.canUpgrade}`);
@@ -519,4 +564,16 @@ function onUserActivityStatus(status: {
 }) {
     log.debug('UserActivityMonitor.on(status)', {status});
     WebContentsManager.sendToAllViews(USER_ACTIVITY_UPDATE, status.userIsActive, status.idleTime, status.isSystemEvent);
+}
+
+function handleStartDownload() {
+    if (updateManager) {
+        updateManager.handleDownload();
+    }
+}
+
+function handleStartUpgrade() {
+    if (updateManager) {
+        updateManager.handleUpdate();
+    }
 }

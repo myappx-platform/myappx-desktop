@@ -19,7 +19,13 @@ function getMacVersions() {
 }
 
 const config = {
-    appId: 'Mattermost.Desktop',
+    publish: [
+        {
+            provider: 'generic',
+            url: 'https://localhost:18443/desktop',
+        },
+    ],
+    appId: 'MyAppx.Desktop',
     artifactName: '${version}/${name}-${version}-${os}-${arch}.${ext}',
     directories: {
         buildResources: 'src/assets',
@@ -27,6 +33,11 @@ const config = {
     },
     extraMetadata: {
         main: 'index.js',
+    },
+    extraResources: {
+        from: './extraResources/',
+        to: 'extraResources',
+        filter: ['**/*'],
     },
     files: [
         '!node_modules/**/*',
@@ -56,17 +67,18 @@ const config = {
     ],
     protocols: [
         {
-            name: 'Mattermost',
+            name: 'MyAppx',
             schemes: [
-                'mattermost',
+                'myappx',
             ],
         },
     ],
     beforePack: 'scripts/beforepack.js',
     afterPack: 'scripts/afterpack.js',
+    afterAllArtifactBuild: 'scripts/afterbuild.js',
     deb: {
         artifactName: '${version}/${name}_${version}-1_${arch}.${ext}',
-        synopsis: 'Mattermost Desktop App',
+        synopsis: 'MyAppx Desktop',
         depends: [
             'libnotify4',
             'libxtst6',
@@ -89,7 +101,7 @@ const config = {
             'rpm',
             'flatpak',
         ],
-        appId: 'com.Mattermost.Desktop',
+        appId: 'MyAppx.Desktop',
         extraFiles: [
             {
                 filter: [
@@ -173,6 +185,7 @@ const config = {
     },
     win: {
         target: [
+            'nsis',
             'zip',
             'msi',
         ],
@@ -196,9 +209,17 @@ const config = {
             publisherName: 'CN="Mattermost, Inc.", O="Mattermost, Inc.", L=Palo Alto, S=California, C=US',
         } : null,
     },
+    nsis: {
+        artifactName: '${version}/${name}-setup-${version}-win.${ext}',
+        packElevateHelper: false,
+        shortcutName: 'MyAppx Desktop',
+        uninstallDisplayName: 'MyAppx Desktop',
+        include: 'scripts/installer.nsh',
+    },
     msi: {
         additionalWixArgs: ['-ext', 'WixUtilExtension'],
-        upgradeCode: '{8523DAF0-699D-4CC7-9A65-C5E696A9DE6D}',
+        shortcutName: 'MyAppx Desktop',
+        upgradeCode: '{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}',
         perMachine: true,
     },
     rpm: {

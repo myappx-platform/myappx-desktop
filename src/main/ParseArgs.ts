@@ -4,7 +4,7 @@
 import {app} from 'electron';
 import yargs from 'yargs';
 
-import {MATTERMOST_PROTOCOL} from 'common/constants';
+import {MYAPPX_PROTOCOL} from 'common/constants';
 import * as Validator from 'common/Validator';
 
 import type {Args} from 'types/args';
@@ -15,7 +15,7 @@ export default function parse(args: string[]) {
 
 function triageArgs(args: string[]) {
     // ensure any args following a possible deeplink are discarded
-    const deeplinkIndex = args.findIndex((arg) => arg.toLowerCase().includes(`${MATTERMOST_PROTOCOL}:`));
+    const deeplinkIndex = args.findIndex((arg) => arg.toLowerCase().includes(`${MYAPPX_PROTOCOL}:`));
     if (deeplinkIndex !== -1) {
         return args.slice(0, deeplinkIndex + 1);
     }

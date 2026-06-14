@@ -9,6 +9,15 @@ import NavigationManager from 'app/navigationManager';
 import Config from 'common/config';
 import parseArgs from 'main/ParseArgs';
 
+jest.mock('main/autoUpdater', () => ({
+    __esModule: true,
+    default: {
+        checkForUpdates: jest.fn(),
+        handleDownload: jest.fn(),
+        handleUpdate: jest.fn(),
+    },
+}));
+
 import {initialize} from './initialize';
 import {clearAppCache, getDeeplinkingURL, wasUpdated} from './utils';
 
@@ -38,7 +47,11 @@ jest.mock('electron', () => ({
         handle: jest.fn(),
         exit: jest.fn(),
         getPath: jest.fn(),
+        getAppPath: jest.fn(),
         setPath: jest.fn(),
+        commandLine: {
+            appendSwitch: jest.fn(),
+        },
         disableHardwareAcceleration: jest.fn(),
         enableSandbox: jest.fn(),
         requestSingleInstanceLock: jest.fn(),
@@ -104,7 +117,7 @@ const isDev = false;
 jest.mock('electron-is-dev', () => isDev);
 
 jest.mock('common/constants', () => ({
-    MATTERMOST_PROTOCOL: 'mattermost',
+    MYAPPX_PROTOCOL: 'myappx',
 }));
 
 jest.mock('app/serverHub', () => ({
@@ -206,6 +219,8 @@ jest.mock('common/servers/serverManager', () => ({
     init: jest.fn(),
     on: jest.fn(),
     off: jest.fn(),
+    prependListener: jest.fn(),
+    getServer: jest.fn(),
 }));
 
 jest.mock('common/views/viewManager', () => ({
@@ -218,7 +233,12 @@ jest.mock('app/menus', () => ({
 }));
 
 jest.mock('main/security/preAuthManager', () => ({
-    handlePreAuthSecret: jest.fn(),
+    loadPreAuthSecretForServer: jest.fn(),
+    preAuthHeaderOnHeadersReceivedHander: jest.fn(),
+}));
+
+jest.mock('main/security/preAuthSecretLoader', () => ({
+    applyLocalPreAuthSecretToServers: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('main/sentryHandler', () => ({

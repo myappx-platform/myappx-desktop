@@ -88,6 +88,10 @@ body {
                         @include file-icon('assets/thumbnails/mattermost.svg');
                         background-size: 32px 32px;
                     }
+                    &.myappx {
+                        @include file-icon('assets/thumbnails/myappx.svg');
+                        background-size: 32px 32px;
+                    }
                     &.text {
                         @include file-icon('assets/thumbnails/text.svg');
                     }

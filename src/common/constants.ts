@@ -19,7 +19,7 @@ export const UPDATE_DOWNLOAD_ITEM: Omit<DownloadedItem, 'filename' | 'state'> = 
 };
 
 export const MAILTO_PREFIX = 'mailto:';
-export const MATTERMOST_PROTOCOL = 'mattermost';
+export const MYAPPX_PROTOCOL = 'myappx';
 
 // Regular expressions
 export const REGEX_EMAIL = /[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/; // based on W3C input type email regex
@@ -43,18 +43,18 @@ export const POPOUT_RATE_LIMIT = 1000;
 export const MAX_URL_LENGTH = 8192;
 
 // We use this URL inside the Diagnostics to check if the computer has internet connectivity
-export const IS_ONLINE_ENDPOINT = 'https://community.mattermost.com/api/v4/system/ping';
+export const IS_ONLINE_ENDPOINT = 'https://myappx.sourceforge.io/desktop/ping';
 
-export const COOKIE_NAME_USER_ID = 'MMUSERID';
-export const COOKIE_NAME_CSRF = 'MMCSRF';
-export const COOKIE_NAME_AUTH_TOKEN = 'MMAUTHTOKEN';
+export const COOKIE_NAME_USER_ID = 'MYAPPXUSERID';
+export const COOKIE_NAME_CSRF = 'MYAPPXCSRF';
+export const COOKIE_NAME_AUTH_TOKEN = 'MYAPPXAUTHTOKEN';
 
-export const DEFAULT_HELP_LINK = 'https://docs.mattermost.com/guides/collaborate.html';
-export const DEFAULT_ACADEMY_LINK = 'https://academy.mattermost.com/';
-export const DEFAULT_TE_REPORT_PROBLEM_LINK = 'https://mattermost.com/pl/report-a-bug';
-export const DEFAULT_EE_REPORT_PROBLEM_LINK = 'https://support.mattermost.com/hc/en-us/requests/new';
-export const DEFAULT_UPGRADE_LINK = 'https://forum.mattermost.com/t/mattermost-desktop-app-5-11-important-compatibility-notice/22599';
-export const DEFAULT_CHANGELOG_LINK = 'https://docs.mattermost.com/help/apps/desktop-changelog.html';
+export const DEFAULT_HELP_LINK = 'https://myappx.sourceforge.io/desktop/help.html';
+export const DEFAULT_ACADEMY_LINK = 'https://myappx.sourceforge.io/desktop/academy.html';
+export const DEFAULT_TE_REPORT_PROBLEM_LINK = 'https://myappx.sourceforge.io/desktop/problem.html';
+export const DEFAULT_EE_REPORT_PROBLEM_LINK = 'hhttps://myappx.sourceforge.io/desktop/problem.html';
+export const DEFAULT_UPGRADE_LINK = 'https://myappx.sourceforge.io/desktop/upgrade.html';
+export const DEFAULT_CHANGELOG_LINK = 'https://myappx.sourceforge.io/desktop/changelog.html';
 
 export const ModalConstants = {
     SETTINGS_MODAL: 'settingsModal',

@@ -69,8 +69,8 @@ jest.mock('app/navigationManager', () => ({
     openLinkInPrimaryTab: jest.fn(),
 }));
 
-jest.mock('./initialize', () => ({
-    mainProtocol: 'mattermost',
+jest.mock('common/constants', () => ({
+    MYAPPX_PROTOCOL: 'myappx',
 }));
 
 jest.mock('common/servers/MattermostServer', () => ({
@@ -92,15 +92,15 @@ jest.mock('main/server/serverInfo', () => ({
 describe('main/app/utils', () => {
     describe('getDeeplinkingURL', () => {
         it('should return undefined if deeplinking URL is not last argument', () => {
-            expect(getDeeplinkingURL(['mattermost', 'mattermost://server-1.com', '--oops'])).toBeUndefined();
+            expect(getDeeplinkingURL(['myappx', 'myappx://server-1.com', '--oops'])).toBeUndefined();
         });
 
         it('should return undefined if deeplinking URL is not valid', () => {
-            expect(getDeeplinkingURL(['mattermost', 'mattermost://,a<lolbad'])).toBeUndefined();
+            expect(getDeeplinkingURL(['myappx', 'myappx://,a<lolbad'])).toBeUndefined();
         });
 
         it('should return url if deeplinking URL is valid', () => {
-            expect(getDeeplinkingURL(['mattermost', 'mattermost://server-1.com'])).toBe('mattermost://server-1.com');
+            expect(getDeeplinkingURL(['myappx', 'myappx://server-1.com'])).toBe('myappx://server-1.com');
         });
     });
 
