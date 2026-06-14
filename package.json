@@ -7,7 +7,7 @@
   "author": "MyAppx, Software. <ken.longnan@gmail.com>",
   "license": "Apache-2.0",
   "desktopName": "MyAppx.Desktop",
-  "homepage": "https://myappx.sourceforge.io/desktop",
+  "homepage": "https://localhost:18443/desktop",
   "engines": {
     "node": ">=18.0.0"
   },

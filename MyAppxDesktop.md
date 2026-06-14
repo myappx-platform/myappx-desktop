@@ -68,21 +68,59 @@ Otherwise, the installation or startup may fail.
 ⚠️ **Warning**: Do not run the installer while the app is still running.
 
 #### Upgrade URL
-1. Online
-  "publish": [
-    {
-    "provider": "generic",
-    "url": "https://myappx.sourceforge.io/desktop"
-    }
-  ]
 
-2. Test
-  "publish": [
-    {
+In-app updates use **electron-updater**, which reads a single `publish.url` baked in at package time. Change the URL below, align `buildConfig.ts`, then rebuild with `npm run package:windows-installers`.
+
+**Files to edit**
+
+| File | Key |
+|------|-----|
+| `electron-builder.json` | `publish[].url` |
+| `src/common/config/buildConfig.ts` | `updateNotificationURL`, `linuxUpdateURL` |
+
+**1. Local AppxServer (current default)**
+
+Serves `latest.yml` and installers from `/desktop` on the bundled server (pre-auth bypass). Copy artifacts to `org.adempiere.server/desktop/` before deploying the server plugin.
+
+```json
+"publish": [
+  {
     "provider": "generic",
     "url": "https://localhost:18443/desktop"
-    }
-  ]
+  }
+]
+```
+
+```typescript
+// buildConfig.ts
+updateNotificationURL: 'https://localhost:18443/desktop',
+linuxUpdateURL: 'https://localhost:18443/desktop/linux-desktop-install.html',
+```
+
+**2. SourceForge (online release)**
+
+Use when publishing to the public download site. Host `latest.yml` and versioned installers under the same path layout on SourceForge.
+
+```json
+"publish": [
+  {
+    "provider": "generic",
+    "url": "https://myappx.sourceforge.io/desktop"
+  }
+]
+```
+
+```typescript
+// buildConfig.ts
+updateNotificationURL: 'https://myappx.sourceforge.io/desktop',
+linuxUpdateURL: 'https://myappx.sourceforge.io/desktop/linux-desktop-install.html',
+```
+
+**Switching**
+
+- Pick **one** base URL per installer build; the running app checks only that URL.
+- To move from local → SourceForge (or back), update both files above, repackage Desktop, and distribute the new installer.
+- **Dual-source** (try localhost first, then SourceForge) is not supported out of the box; that would need a custom fallback in `src/main/autoUpdater.ts`.
 
 ## Abnormal Exit (Crash Recovery)
 

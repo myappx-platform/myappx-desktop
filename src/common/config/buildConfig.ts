@@ -35,10 +35,10 @@ const buildConfig: BuildConfig = {
     enableServerManagement: true,
     enableAutoUpdater: true,
     enableUpdateNotifications: true,
-    updateNotificationURL: 'https://myappx.sourceforge.io/desktop',
+    updateNotificationURL: 'https://localhost:18443/desktop',
     macAppStoreUpdateURL: 'macappstore://apps.apple.com/us/app/myappx-desktop/id0000000000',
     windowsStoreUpdateURL: 'ms-windows-store://pdp/?productid=X0000000000',
-    linuxUpdateURL: 'https://myappx.sourceforge.io/desktop/linux-desktop-install.html',
+    linuxUpdateURL: 'https://localhost:18443/desktop/linux-desktop-install.html',
     linuxGitHubReleaseURL: 'https://github.com/longnan/myappx-desktop/releases/tag/v',
     managedResources: ['trusted'],
     allowedProtocols: [

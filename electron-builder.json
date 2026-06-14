@@ -2,7 +2,7 @@
   "publish": [
     {
     "provider": "generic",
-    "url": "https://myappx.sourceforge.io/desktop"
+    "url": "https://localhost:18443/desktop"
     }
   ],
   "appId": "MyAppx.Desktop",
