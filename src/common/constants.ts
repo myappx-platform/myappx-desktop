@@ -42,19 +42,29 @@ export const LOGS_MAX_STRING_LENGTH = 63;
 export const POPOUT_RATE_LIMIT = 1000;
 export const MAX_URL_LENGTH = 8192;
 
+/**
+ * Desktop docs, update manifest, and help links base URL.
+ * Change this single value to switch between local AppxServer and SourceForge.
+ * Keep electron-builder.ts publish.url in sync (see Plan A comment there).
+ */
+export const MYAPPX_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
+
+const myAppxDesktopUrl = (path: string) =>
+    `${MYAPPX_DESKTOP_BASE_URL}/${path.replace(/^\//, '')}`;
+
 // We use this URL inside the Diagnostics to check if the computer has internet connectivity
-export const IS_ONLINE_ENDPOINT = 'https://myappx.sourceforge.io/desktop/ping';
+export const IS_ONLINE_ENDPOINT = myAppxDesktopUrl('ping');
 
 export const COOKIE_NAME_USER_ID = 'MYAPPXUSERID';
 export const COOKIE_NAME_CSRF = 'MYAPPXCSRF';
 export const COOKIE_NAME_AUTH_TOKEN = 'MYAPPXAUTHTOKEN';
 
-export const DEFAULT_HELP_LINK = 'https://myappx.sourceforge.io/desktop/help.html';
-export const DEFAULT_ACADEMY_LINK = 'https://myappx.sourceforge.io/desktop/academy.html';
-export const DEFAULT_TE_REPORT_PROBLEM_LINK = 'https://myappx.sourceforge.io/desktop/problem.html';
-export const DEFAULT_EE_REPORT_PROBLEM_LINK = 'hhttps://myappx.sourceforge.io/desktop/problem.html';
-export const DEFAULT_UPGRADE_LINK = 'https://myappx.sourceforge.io/desktop/upgrade.html';
-export const DEFAULT_CHANGELOG_LINK = 'https://myappx.sourceforge.io/desktop/changelog.html';
+export const DEFAULT_HELP_LINK = myAppxDesktopUrl('help.html');
+export const DEFAULT_ACADEMY_LINK = myAppxDesktopUrl('academy.html');
+export const DEFAULT_TE_REPORT_PROBLEM_LINK = myAppxDesktopUrl('problem.html');
+export const DEFAULT_EE_REPORT_PROBLEM_LINK = myAppxDesktopUrl('problem.html');
+export const DEFAULT_UPGRADE_LINK = myAppxDesktopUrl('upgrade.html');
+export const DEFAULT_CHANGELOG_LINK = myAppxDesktopUrl('changelog.html');
 
 export const ModalConstants = {
     SETTINGS_MODAL: 'settingsModal',

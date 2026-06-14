@@ -4,7 +4,12 @@
 
 import type {BuildConfig} from 'types/config';
 
-import {DEFAULT_ACADEMY_LINK, DEFAULT_HELP_LINK, DEFAULT_UPGRADE_LINK} from '../../common/constants';
+import {
+    DEFAULT_ACADEMY_LINK,
+    DEFAULT_HELP_LINK,
+    DEFAULT_UPGRADE_LINK,
+    MYAPPX_DESKTOP_BASE_URL,
+} from '../../common/constants';
 
 // For detailed guides, please refer to https://docs.mattermost.com/deployment/desktop-app-deployment.html
 
@@ -35,10 +40,10 @@ const buildConfig: BuildConfig = {
     enableServerManagement: true,
     enableAutoUpdater: true,
     enableUpdateNotifications: true,
-    updateNotificationURL: 'https://localhost:18443/desktop',
+    updateNotificationURL: MYAPPX_DESKTOP_BASE_URL,
     macAppStoreUpdateURL: 'macappstore://apps.apple.com/us/app/myappx-desktop/id0000000000',
     windowsStoreUpdateURL: 'ms-windows-store://pdp/?productid=X0000000000',
-    linuxUpdateURL: 'https://localhost:18443/desktop/linux-desktop-install.html',
+    linuxUpdateURL: `${MYAPPX_DESKTOP_BASE_URL}/linux-desktop-install.html`,
     linuxGitHubReleaseURL: 'https://github.com/myappx-platform/myappx-desktop/releases/tag/v',
     managedResources: ['trusted'],
     allowedProtocols: [

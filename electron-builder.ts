@@ -18,11 +18,14 @@ function getMacVersions() {
     return {bundleShortVersion: stableVersion, bundleVersion: buildVersion};
 }
 
+// Must match MYAPPX_DESKTOP_BASE_URL in src/common/constants.ts
+const MYAPPX_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
+
 const config = {
     publish: [
         {
             provider: 'generic',
-            url: 'https://localhost:18443/desktop',
+            url: MYAPPX_DESKTOP_BASE_URL,
         },
     ],
     appId: 'MyAppx.Desktop',
