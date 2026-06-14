@@ -13,6 +13,7 @@ import type {MattermostServer} from 'common/servers/MattermostServer';
 import ServerManager from 'common/servers/serverManager';
 import {isTrustedURL as isTrustedURLHelper, parseURL} from 'common/utils/url';
 import secureStorage from 'main/secureStorage';
+import {loadLocalPreAuthSecret} from 'main/security/preAuthSecretLoader';
 import {getLocalPreload} from 'main/utils';
 
 import type {LoginModalData} from 'types/auth';
@@ -20,6 +21,7 @@ import type {CertificateModalData} from 'types/certificate';
 
 const log = new Logger('PreAuthManager');
 const preload = getLocalPreload('internalAPI.js');
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
 const loginModalHtml = 'myappx-desktop://renderer/loginModal.html';
 const preAuthModalHtml = 'myappx-desktop://renderer/preAuthHeaderModal.html';
 const html = 'myappx-desktop://renderer/certificateModal.html';
@@ -68,6 +70,18 @@ export class PreAuthManager {
         if (!server) {
             return;
         }
+
+        if (LOCAL_HOSTNAMES.has(server.url.hostname.toLowerCase())) {
+            const secret = loadLocalPreAuthSecret();
+            ServerManager.updatePreAuthSecret(server.id, secret);
+            try {
+                await secureStorage.setSecret(server.url.toString(), SECURE_STORAGE_KEYS.PREAUTH, secret);
+            } catch (error) {
+                log.warn('Failed to persist local pre-auth secret for server:', {serverId: server.id, error});
+            }
+            return;
+        }
+
         try {
             const secret = await secureStorage.getSecret(server.url.toString(), SECURE_STORAGE_KEYS.PREAUTH);
             if (secret) {

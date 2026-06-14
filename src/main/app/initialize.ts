@@ -60,6 +60,7 @@ import secureStorage from 'main/secureStorage';
 import AllowProtocolDialog from 'main/security/allowProtocolDialog';
 import PermissionsManager from 'main/security/permissionsManager';
 import PreAuthManager from 'main/security/preAuthManager';
+import {applyLocalPreAuthSecretToServers} from 'main/security/preAuthSecretLoader';
 import sentryHandler from 'main/sentryHandler';
 import UserActivityMonitor from 'main/UserActivityMonitor';
 
@@ -364,6 +365,8 @@ async function initializeAfterAppReady() {
     ServerManager.init();
     ServerManager.off(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
 
+    await applyLocalPreAuthSecretToServers();
+
     app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -391,24 +394,21 @@ async function initializeAfterAppReady() {
         try {
             const server = ServerManager.lookupServerByURL(details.url);
 
-            if (server && server.preAuthSecret) {
-                const secret = server.preAuthSecret;
-
-                if (!('X-MyAppx-Preauth-Secret' in details.requestHeaders)) {
-                    const requestHeaders = {
-                        ...details.requestHeaders,
-                        'X-MyAppx-Preauth-Secret': secret,
-                    };
-
-                    callback({requestHeaders});
-                    return;
+            if (server?.preAuthSecret) {
+                const requestHeaders = {...details.requestHeaders};
+                for (const key of Object.keys(requestHeaders)) {
+                    if (key.toLowerCase() === 'x-myappx-preauth-secret') {
+                        delete requestHeaders[key];
+                    }
                 }
+                requestHeaders['X-MyAppx-Preauth-Secret'] = server.preAuthSecret;
+                callback({requestHeaders});
+                return;
             }
         } catch (error) {
             log.debug('Error injecting preauth secret header:', {error});
         }
 
-        // If no secret found or error occurred, proceed with original headers
         callback({requestHeaders: details.requestHeaders});
     });
 

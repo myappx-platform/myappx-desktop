@@ -26,7 +26,7 @@ const buildConfig: BuildConfig = {
     defaultServers: [
         {
             name: 'My Workspace',
-            url: 'https://localhost:18443/',
+            url: 'https://localhost:18443/webui/',
         },
     ],
     helpLink: DEFAULT_HELP_LINK,

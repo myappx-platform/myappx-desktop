@@ -32,7 +32,7 @@ export function getPersistentResourcesPath(): string {
 /**
  * Get the source extraResources directory from installation
  */
-function getInstallResourcesPath(): string {
+export function getExtraResourcesPath(): string {
     return path.resolve(app.getAppPath(), '../extraResources');
 }
 
@@ -313,7 +313,7 @@ async function extractAppxserverZip(installPath: string, persistentPath: string)
  * when the zip exists and (appxserver-portable is missing or an update is needed).
  */
 export async function initializePersistentResources(): Promise<void> {
-    const installPath = getInstallResourcesPath();
+    const installPath = getExtraResourcesPath();
     const persistentPath = getPersistentResourcesPath();
 
     log.info('Initializing persistent resources');
