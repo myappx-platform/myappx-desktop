@@ -352,21 +352,6 @@ async function initializeAfterAppReady() {
 
     MainWindow.show();
 
-    const updateServerInfo = (serverId: string) => {
-        if (serverId) {
-            updateServerInfos([ServerManager.getServer(serverId)!]);
-        }
-    };
-    ServerManager.on(SERVER_ADDED, updateServerInfo);
-    ServerManager.on(SERVER_URL_CHANGED, updateServerInfo);
-    ServerManager.on(SERVER_PRE_AUTH_SECRET_CHANGED, updateServerInfo);
-
-    ServerManager.on(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
-    ServerManager.init();
-    ServerManager.off(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
-
-    await applyLocalPreAuthSecretToServers();
-
     app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -389,7 +374,7 @@ async function initializeAfterAppReady() {
         downloadsManager.webRequestOnHeadersReceivedHandler(details, callback);
     });
 
-    // Inject X-MyAppx-Preauth-Secret header for all server requests
+    // Inject X-MyAppx-Preauth-Secret header for all server requests (must register before ServerManager.init loads tabs)
     defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
         try {
             const server = ServerManager.lookupServerByURL(details.url);
@@ -411,6 +396,22 @@ async function initializeAfterAppReady() {
 
         callback({requestHeaders: details.requestHeaders});
     });
+
+    const updateServerInfo = (serverId: string) => {
+        if (serverId) {
+            updateServerInfos([ServerManager.getServer(serverId)!]);
+        }
+    };
+    ServerManager.on(SERVER_ADDED, updateServerInfo);
+    ServerManager.on(SERVER_URL_CHANGED, updateServerInfo);
+    ServerManager.on(SERVER_PRE_AUTH_SECRET_CHANGED, updateServerInfo);
+
+    // Run before ViewManager's SERVER_ADDED handler so preAuthSecret exists before the first loadURL
+    ServerManager.prependListener(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
+    ServerManager.init();
+    ServerManager.off(SERVER_ADDED, PreAuthManager.loadPreAuthSecretForServer);
+
+    await applyLocalPreAuthSecretToServers();
 
     if (process.platform !== 'darwin') {
         defaultSession.on('spellcheck-dictionary-download-failure', (event, lang) => {
