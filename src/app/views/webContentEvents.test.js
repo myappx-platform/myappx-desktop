@@ -43,6 +43,7 @@ jest.mock('app/views/pluginsPopUps', () => ({
 }));
 
 jest.mock('main/utils', () => ({
+    applyUserAgent: jest.fn(),
     composeUserAgent: jest.fn(),
 }));
 

@@ -33,7 +33,7 @@ import {localizeMessage} from 'main/i18nManager';
 import {generateHandleConsoleMessage, isCustomProtocol, isMattermostProtocol} from './webContentEventsCommon';
 
 import allowProtocolDialog from '../../main/security/allowProtocolDialog';
-import {composeUserAgent} from '../../main/utils';
+import {applyUserAgent, composeUserAgent} from '../../main/utils';
 
 const log = new Logger('WebContentsEventManager');
 
@@ -265,10 +265,12 @@ export class WebContentsEventManager {
                 popup.once('ready-to-show', () => popup.show());
 
                 if (isManagedResource(serverURL, parsedURL)) {
+                    applyUserAgent(popup.webContents);
                     popup.loadURL(serializedURL);
                 } else {
                     // currently changing the userAgent for popup windows to allow plugins to go through google's oAuth
                     // should be removed once a proper oAuth2 implementation is setup.
+                    applyUserAgent(popup.webContents);
                     popup.loadURL(serializedURL, {
                         userAgent: composeUserAgent(),
                     });

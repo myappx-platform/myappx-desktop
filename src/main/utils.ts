@@ -8,7 +8,7 @@ import path from 'path';
 import {promisify} from 'util';
 const exec = promisify(execOriginal);
 
-import type {BrowserWindow} from 'electron';
+import type {BrowserWindow, WebContents} from 'electron';
 import {app} from 'electron';
 
 import {MAILTO_PREFIX} from 'common/constants';
@@ -74,17 +74,25 @@ export function getLocalPreload(file: string) {
     return path.join(app.getAppPath(), file);
 }
 
+/** Matches electron-builder productName in package.json. */
+const DESKTOP_UA_PRODUCT = 'MyAppxDesktop';
+
 export function composeUserAgent(browserMode?: boolean) {
     const baseUserAgent = app.userAgentFallback.split(' ');
 
-    // filter out the Mattermost tag that gets added earlier on
-    const filteredUserAgent = baseUserAgent.filter((ua) => !ua.startsWith('Mattermost'));
+    const filteredUserAgent = baseUserAgent.filter(
+        (ua) => !ua.startsWith('Mattermost') && !ua.startsWith(DESKTOP_UA_PRODUCT),
+    );
 
     if (browserMode) {
         return filteredUserAgent.join(' ');
     }
 
-    return `${filteredUserAgent.join(' ')} Mattermost/${app.getVersion()}`;
+    return `${filteredUserAgent.join(' ')} ${DESKTOP_UA_PRODUCT}/${app.getVersion()}`;
+}
+
+export function applyUserAgent(webContents: WebContents, browserMode?: boolean) {
+    webContents.setUserAgent(composeUserAgent(browserMode));
 }
 
 export function isStringWithLength(string: unknown): boolean {

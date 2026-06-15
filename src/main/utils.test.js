@@ -12,6 +12,8 @@ jest.mock('electron', () => ({
             wasOpenedAsHidden: true,
         }),
         getAppPath: () => '/path/to/app',
+        userAgentFallback: 'Mozilla/5.0 MyAppxDesktop/6.2.1 Chrome/146.0 Electron/41.2.0 Safari/537.36 Mattermost/6.2.1',
+        getVersion: () => '6.2.1',
     },
 }));
 
@@ -36,6 +38,20 @@ jest.mock('fs', () => ({
 }));
 
 describe('main/utils', () => {
+    describe('composeUserAgent', () => {
+        it('should append a single MyAppxDesktop version token', () => {
+            expect(Utils.composeUserAgent()).toBe(
+                'Mozilla/5.0 Chrome/146.0 Electron/41.2.0 Safari/537.36 MyAppxDesktop/6.2.1',
+            );
+        });
+
+        it('should omit the desktop token in browser mode', () => {
+            expect(Utils.composeUserAgent(true)).toBe(
+                'Mozilla/5.0 Chrome/146.0 Electron/41.2.0 Safari/537.36',
+            );
+        });
+    });
+
     describe('shouldBeHiddenOnStartup', () => {
         let originalPlatform;
 

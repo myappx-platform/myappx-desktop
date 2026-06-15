@@ -38,7 +38,7 @@ import {getServerAPI} from 'main/server/serverAPI';
 import WebContentsEventManager from './webContentEvents';
 
 import ContextMenu from '../../main/contextMenu';
-import {getWindowBoundaries, getLocalPreload, composeUserAgent} from '../../main/utils';
+import {getWindowBoundaries, getLocalPreload, applyUserAgent, composeUserAgent} from '../../main/utils';
 
 enum Status {
     LOADING,
@@ -79,6 +79,7 @@ export class MattermostWebContentsView extends EventEmitter {
         };
         this.atRoot = true;
         this.webContentsView = new WebContentsView(this.options);
+        applyUserAgent(this.webContentsView.webContents, DeveloperMode.get('browserOnly'));
         this.resetLoadingStatus();
 
         this.log = ViewManager.getViewLog(this.id, 'MattermostWebContentsView');
@@ -179,6 +180,7 @@ export class MattermostWebContentsView extends EventEmitter {
         }
         this.log.verbose('Loading URL');
         performanceMonitor.registerServerView(`Server ${this.webContentsView.webContents.id}`, this.webContentsView.webContents, this.view.serverId);
+        applyUserAgent(this.webContentsView.webContents, DeveloperMode.get('browserOnly'));
         const loading = this.webContentsView.webContents.loadURL(loadURL, {userAgent: composeUserAgent(DeveloperMode.get('browserOnly'))});
         loading.then(this.loadSuccess(loadURL)).catch((err) => {
             if (err.code && err.code.startsWith('ERR_CERT')) {
@@ -351,6 +353,7 @@ export class MattermostWebContentsView extends EventEmitter {
             if (!this.webContentsView || !this.webContentsView.webContents || this.isDestroyed()) {
                 return;
             }
+            applyUserAgent(this.webContentsView.webContents, DeveloperMode.get('browserOnly'));
             const loading = this.webContentsView.webContents.loadURL(loadURL, {userAgent: composeUserAgent(DeveloperMode.get('browserOnly'))});
             loading.then(this.loadSuccess(loadURL)).catch((err) => {
                 if (this.maxRetries-- > 0) {

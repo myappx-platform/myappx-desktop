@@ -92,6 +92,7 @@ jest.mock('main/utils', () => ({
     openScreensharePermissionsSettingsMacOS: jest.fn(),
     resetScreensharePermissionsMacOS: jest.fn(),
     getLocalPreload: jest.fn((file) => file),
+    applyUserAgent: jest.fn(),
     composeUserAgent: jest.fn(),
 }));
 

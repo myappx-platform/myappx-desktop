@@ -43,6 +43,7 @@ import {localizeMessage} from 'main/i18nManager';
 import performanceMonitor from 'main/performanceMonitor';
 import PermissionsManager from 'main/security/permissionsManager';
 import {
+    applyUserAgent,
     composeUserAgent,
     getLocalPreload,
     openScreensharePermissionsSettingsMacOS,
@@ -216,6 +217,7 @@ export class CallsWidgetWindow {
             return;
         }
         performanceMonitor.registerView('CallsWidgetWindow', this.win.webContents);
+        applyUserAgent(this.win.webContents);
         this.win?.loadURL(widgetURL, {
             userAgent: composeUserAgent(),
         }).catch((reason) => {
@@ -354,6 +356,7 @@ export class CallsWidgetWindow {
 
     private onPopOutCreate = (win: BrowserWindow) => {
         this.popOut = win;
+        applyUserAgent(this.popOut.webContents);
 
         this.setWidgetWindowStacking({onTop: false});
 
@@ -390,6 +393,7 @@ export class CallsWidgetWindow {
             }
 
             try {
+                applyUserAgent(this.popOut.webContents);
                 await this.popOut?.loadURL(url, {
                     userAgent: composeUserAgent(),
                 });
