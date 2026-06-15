@@ -61,7 +61,6 @@ import NonceManager from 'main/nonceManager';
 import {getDoNotDisturb} from 'main/notifications';
 import parseArgs from 'main/ParseArgs';
 import PerformanceMonitor from 'main/performanceMonitor';
-import {initializePersistentResources} from 'main/persistentResources';
 import secureStorage from 'main/secureStorage';
 import AllowProtocolDialog from 'main/security/allowProtocolDialog';
 import PermissionsManager from 'main/security/permissionsManager';
@@ -105,8 +104,6 @@ import {
     updateSpellCheckerLocales,
     wasUpdated,
     updateServerInfos,
-    ensureOrphanAppxserverAndDbStopped,
-    startAppxserver,
 } from './utils';
 import {
     handleDoubleClick,
@@ -127,19 +124,6 @@ export async function initialize() {
     await initializeConfig();
     initializeAppEventListeners();
     initializeBeforeAppReady();
-
-    // Kill any orphan appxserver/DB from prior run before touching appxserver-portable.
-    // This avoids EPERM when renaming (backup) appxserver-portable on Windows.
-    // await ensureOrphanAppxserverAndDbStopped();
-
-    // Initialize persistent resources (must be done before starting AppxServer)
-    // This ensures extraResources are copied to user data directory and survive reinstallation.
-    // Extracts appxserver-portable.zip from extraResources to persistent-resources/appxserver-portable.
-    // await initializePersistentResources();
-
-    // start AppxServer (DB start is fire-and-forget; 6s delay allows DB to become ready)
-    // startAppxserver();
-    // await new Promise((resolve) => setTimeout(resolve, 6000));
 
     // https://stackoverflow.com/questions/57676652/how-to-import-a-self-signed-certificate-in-electron-application
 

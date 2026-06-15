@@ -34,6 +34,3 @@ fastlane/report.xml
 *.p8
 
 .aider*
-
-extraResources/appxserver-portable.zip
-extraResources/myappx-preauth.secret

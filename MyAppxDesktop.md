@@ -1,5 +1,7 @@
 # MyAppx Desktop - Documentation
 
+MyAppx Desktop is an Electron client that wraps the MyAppx Web UI in a native Windows application. It connects to an **externally running** MyAppx Server (AppxServer); it does **not** bundle or start AppxServer, PostgreSQL, or a portable server.
+
 ## Development
 
 ### Clean Install, Rebuild, and Start
@@ -29,6 +31,15 @@ npm run build
 npm run package:windows-installers
 ```
 
+## Prerequisites
+
+Before using the desktop client, ensure MyAppx Server is already running and reachable, for example:
+
+- Web UI: `https://localhost:18443/webui/`
+- Desktop update portal: `https://localhost:18443/desktop/`
+
+The desktop app injects `X-MyAppx-Preauth-Secret` for local servers (`localhost`, `127.0.0.1`) using the built-in default secret.
+
 ## Installation Paths
 
 - **Application**: `C:\Users\ken\AppData\Local\Programs\myappx-desktop`
@@ -39,10 +50,12 @@ npm run package:windows-installers
 ### Important Prerequisites
 
 **Before upgrading** (in-app or manual installer), you must:
-- Close the running instance
-- Ensure appxserver and PostgreSQL are stopped
 
-Otherwise, the installation or startup may fail.
+- Close the running MyAppx Desktop instance
+
+Otherwise, the installation may fail because installer files are in use.
+
+AppxServer and PostgreSQL are **not** managed by the desktop client. Stop them separately only if your deployment requires it before upgrading the server itself.
 
 ### Upgrade Methods
 
@@ -51,19 +64,16 @@ Otherwise, the installation or startup may fail.
 1. Go to **Check for updates** → **Restart and install**
 2. The app automatically handles:
    - Runs `before-quit` handler
-   - Stops appxserver (kills Java/jetty process)
-   - Runs `stop-db.bat` and waits for completion (up to 30s)
    - Quits and runs the installer
 
-**No manual steps required.**
+**No manual steps required** beyond having the app closed for the installer to replace files.
 
 #### Manual Upgrade
 
 1. **Quit the app first**:
    - File → Quit, or
    - Tray icon → Quit
-2. This automatically stops appxserver and PostgreSQL
-3. Run the new installer (`setup.exe`)
+2. Run the new installer (`setup.exe`)
 
 ⚠️ **Warning**: Do not run the installer while the app is still running.
 
@@ -80,7 +90,7 @@ In-app updates use **electron-updater**, which reads a single `publish.url` bake
 
 **1. Local AppxServer (current default)**
 
-Serves `latest.yml` and installers from `/desktop` on the bundled server (pre-auth bypass). Copy artifacts to `org.adempiere.server/desktop/` before deploying the server plugin.
+Serves `latest.yml` and installers from `/desktop` on your MyAppx Server. Copy artifacts to `org.adempiere.server/desktop/` before deploying the server plugin.
 
 ```json
 "publish": [
@@ -124,20 +134,6 @@ linuxUpdateURL: 'https://myappx.sourceforge.io/desktop/linux-desktop-install.htm
 
 ## Abnormal Exit (Crash Recovery)
 
-If the desktop instance exits abnormally (force-quit, crash, power loss, etc.), appxserver and PostgreSQL may continue running as orphan processes.
+If the desktop instance exits abnormally (force-quit, crash, power loss, etc.), restart the desktop app normally. The client does not start or stop AppxServer or PostgreSQL.
 
-### Automatic Recovery
-
-On the next startup, the app automatically:
-
-1. Reads `appxserver.pid` from the appxserver work directory (if present)
-2. Kills the orphan appxserver process tree
-3. Runs `stop-db.bat` to stop PostgreSQL
-4. Starts appxserver and database as usual
-
-✅ **No manual intervention needed** - just restart the app after a crash.
-
-## Portable Server 相关代码
-utils.ts
-app.ts
-initialize.ts
+If MyAppx Server was left running from a separate installation, manage that process outside the desktop client (for example via `myappx-server` scripts or your service manager).

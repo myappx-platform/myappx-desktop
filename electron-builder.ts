@@ -37,11 +37,6 @@ const config = {
     extraMetadata: {
         main: 'index.js',
     },
-    extraResources: {
-        from: './extraResources/',
-        to: 'extraResources',
-        filter: ['**/*'],
-    },
     files: [
         '!node_modules/**/*',
         'node_modules/bindings/**/*',

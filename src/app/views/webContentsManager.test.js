@@ -1,9 +1,6 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-jest.mock('main/persistentResources', () => ({
-    getAppxserverWorkDir: jest.fn(() => '/tmp/appxserver'),
-}));
 
 import {session} from 'electron';
 
