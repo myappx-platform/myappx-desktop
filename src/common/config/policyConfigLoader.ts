@@ -11,7 +11,7 @@ import {Logger} from 'common/log';
 import type {RegistryConfig as RegistryConfigType, Server} from 'types/config';
 
 const log = new Logger('PolicyConfigLoader');
-const WINDOWS_REGISTRY_PATH = 'SOFTWARE\\Policies\\MyAppxDesktop';
+const WINDOWS_REGISTRY_PATH = 'SOFTWARE\\Policies\\MyEDIDesktop';
 const WINDOWS_REGISTRY_HIVE_LIST = [HKEY.HKEY_LOCAL_MACHINE, HKEY.HKEY_CURRENT_USER];
 
 export class PolicyConfigLoader {

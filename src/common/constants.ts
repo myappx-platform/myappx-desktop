@@ -19,7 +19,7 @@ export const UPDATE_DOWNLOAD_ITEM: Omit<DownloadedItem, 'filename' | 'state'> = 
 };
 
 export const MAILTO_PREFIX = 'mailto:';
-export const MYAPPX_PROTOCOL = 'myappx';
+export const MYEDI_PROTOCOL = 'myedi';
 
 // Regular expressions
 export const REGEX_EMAIL = /[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/; // based on W3C input type email regex
@@ -47,24 +47,24 @@ export const MAX_URL_LENGTH = 8192;
  * Change this single value to switch between local AppxServer and SourceForge.
  * Keep electron-builder.ts publish.url in sync (see Plan A comment there).
  */
-export const MYAPPX_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
+export const MYEDI_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
 
-const myAppxDesktopUrl = (path: string) =>
-    `${MYAPPX_DESKTOP_BASE_URL}/${path.replace(/^\//, '')}`;
+const myEDIDesktopUrl = (path: string) =>
+    `${MYEDI_DESKTOP_BASE_URL}/${path.replace(/^\//, '')}`;
 
 // We use this URL inside the Diagnostics to check if the computer has internet connectivity
-export const IS_ONLINE_ENDPOINT = myAppxDesktopUrl('ping');
+export const IS_ONLINE_ENDPOINT = myEDIDesktopUrl('ping');
 
 export const COOKIE_NAME_USER_ID = 'MYAPPXUSERID';
 export const COOKIE_NAME_CSRF = 'MYAPPXCSRF';
 export const COOKIE_NAME_AUTH_TOKEN = 'MYAPPXAUTHTOKEN';
 
-export const DEFAULT_HELP_LINK = myAppxDesktopUrl('help.html');
-export const DEFAULT_ACADEMY_LINK = myAppxDesktopUrl('academy.html');
-export const DEFAULT_TE_REPORT_PROBLEM_LINK = myAppxDesktopUrl('problem.html');
-export const DEFAULT_EE_REPORT_PROBLEM_LINK = myAppxDesktopUrl('problem.html');
-export const DEFAULT_UPGRADE_LINK = myAppxDesktopUrl('upgrade.html');
-export const DEFAULT_CHANGELOG_LINK = myAppxDesktopUrl('changelog.html');
+export const DEFAULT_HELP_LINK = myEDIDesktopUrl('help.html');
+export const DEFAULT_ACADEMY_LINK = myEDIDesktopUrl('academy.html');
+export const DEFAULT_TE_REPORT_PROBLEM_LINK = myEDIDesktopUrl('problem.html');
+export const DEFAULT_EE_REPORT_PROBLEM_LINK = myEDIDesktopUrl('problem.html');
+export const DEFAULT_UPGRADE_LINK = myEDIDesktopUrl('upgrade.html');
+export const DEFAULT_CHANGELOG_LINK = myEDIDesktopUrl('changelog.html');
 
 export const ModalConstants = {
     SETTINGS_MODAL: 'settingsModal',

@@ -22,9 +22,9 @@ import type {CertificateModalData} from 'types/certificate';
 const log = new Logger('PreAuthManager');
 const preload = getLocalPreload('internalAPI.js');
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
-const loginModalHtml = 'myappx-desktop://renderer/loginModal.html';
-const preAuthModalHtml = 'myappx-desktop://renderer/preAuthHeaderModal.html';
-const html = 'myappx-desktop://renderer/certificateModal.html';
+const loginModalHtml = 'myedi-desktop://renderer/loginModal.html';
+const preAuthModalHtml = 'myedi-desktop://renderer/preAuthHeaderModal.html';
+const html = 'myedi-desktop://renderer/certificateModal.html';
 
 export class PreAuthManager {
     constructor() {

@@ -293,7 +293,7 @@ describe('PopoutManager', () => {
 
             expect(BaseWindow).toHaveBeenCalledWith({x: 540, y: 540});
             expect(performanceMonitor.registerView).toHaveBeenCalledWith('PopoutWindow-new-window-id', mockBaseWindow.browserWindow.webContents);
-            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myappx-desktop://renderer/popout.html');
+            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myedi-desktop://renderer/popout.html');
             expect(WebContentsManager.createView).toHaveBeenCalledWith(mockWindowView, mockBaseWindow);
             expect(popoutManager.popoutWindows.get('new-window-id')).toBe(mockBaseWindow);
             expect(mockBaseWindow.browserWindow.show).toHaveBeenCalled();
@@ -679,7 +679,7 @@ describe('PopoutManager', () => {
             expect(mockWebContentsView.on).toHaveBeenCalledWith(expect.any(String), expect.any(Function));
 
             // Verify the window was started
-            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myappx-desktop://renderer/popout.html');
+            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myedi-desktop://renderer/popout.html');
         });
 
         it('should not handle non-WINDOW type addition', () => {
@@ -730,7 +730,7 @@ describe('PopoutManager', () => {
             expect(popoutManager.popoutWindows.has('new-window-id')).toBe(true);
 
             // Verify the window was started even without web contents view
-            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myappx-desktop://renderer/popout.html');
+            expect(mockBaseWindow.browserWindow.loadURL).toHaveBeenCalledWith('myedi-desktop://renderer/popout.html');
         });
 
         it('should set up event listeners for the new window', () => {

@@ -7,11 +7,11 @@ import type {Logger} from 'common/log';
 import {getLevel} from 'common/log';
 import {parseURL} from 'common/utils/url';
 
-import {generateHandleConsoleMessage, isCustomProtocol, isMattermostProtocol} from './webContentEventsCommon';
+import {generateHandleConsoleMessage, isCustomProtocol, isMyEDIProtocol} from './webContentEventsCommon';
 
 // Mock the electron-builder.json protocols
 jest.mock('common/constants', () => ({
-    MYAPPX_PROTOCOL: 'myappx',
+    MYEDI_PROTOCOL: 'myedi',
 }));
 
 // Mock the log module
@@ -235,8 +235,8 @@ describe('webContentEventsCommon', () => {
             expect(isCustomProtocol(new URL('https://example.com'))).toBe(false);
         });
 
-        it('should return false for myappx protocol URLs', () => {
-            expect(isCustomProtocol(new URL('myappx://server1'))).toBe(false);
+        it('should return false for myedi protocol URLs', () => {
+            expect(isCustomProtocol(new URL('myedi://server1'))).toBe(false);
         });
 
         it('should return true for custom protocol URLs', () => {
@@ -259,44 +259,44 @@ describe('webContentEventsCommon', () => {
             expect(isCustomProtocol(new URL('HTTP://example.com'))).toBe(false);
         });
 
-        it('should handle URLs with different case myappx protocol', () => {
-            expect(isCustomProtocol(new URL('MYAPPX://server1'))).toBe(false);
+        it('should handle URLs with different case myedi protocol', () => {
+            expect(isCustomProtocol(new URL('MYEDI://server1'))).toBe(false);
         });
     });
 
-    describe('isMattermostProtocol', () => {
-        it('should return true for myappx protocol URLs', () => {
-            expect(isMattermostProtocol(new URL('myappx://server1'))).toBe(true);
+    describe('isMyEDIProtocol', () => {
+        it('should return true for myedi protocol URLs', () => {
+            expect(isMyEDIProtocol(new URL('myedi://server1'))).toBe(true);
         });
 
         it('should return false for http URLs', () => {
-            expect(isMattermostProtocol(new URL('http://example.com'))).toBe(false);
+            expect(isMyEDIProtocol(new URL('http://example.com'))).toBe(false);
         });
 
         it('should return false for https URLs', () => {
-            expect(isMattermostProtocol(new URL('https://example.com'))).toBe(false);
+            expect(isMyEDIProtocol(new URL('https://example.com'))).toBe(false);
         });
 
         it('should return false for other custom protocol URLs', () => {
-            expect(isMattermostProtocol(new URL('custom://example.com'))).toBe(false);
+            expect(isMyEDIProtocol(new URL('custom://example.com'))).toBe(false);
         });
 
         it('should return false for file protocol URLs', () => {
-            expect(isMattermostProtocol(new URL('file:///path/to/file'))).toBe(false);
+            expect(isMyEDIProtocol(new URL('file:///path/to/file'))).toBe(false);
         });
 
-        it('should handle URLs with different case myappx protocol', () => {
-            expect(isMattermostProtocol(new URL('MYAPPX://server1'))).toBe(true);
+        it('should handle URLs with different case myedi protocol', () => {
+            expect(isMyEDIProtocol(new URL('MYEDI://server1'))).toBe(true);
         });
 
-        it('should handle myappx URLs with paths and query parameters', () => {
-            expect(isMattermostProtocol(new URL('myappx://server1/path?param=value'))).toBe(true);
+        it('should handle myedi URLs with paths and query parameters', () => {
+            expect(isMyEDIProtocol(new URL('myedi://server1/path?param=value'))).toBe(true);
         });
 
-        it('should handle myappx URLs with different servers', () => {
-            expect(isMattermostProtocol(new URL('myappx://server1'))).toBe(true);
-            expect(isMattermostProtocol(new URL('myappx://server2'))).toBe(true);
-            expect(isMattermostProtocol(new URL('myappx://my-server.com'))).toBe(true);
+        it('should handle myedi URLs with different servers', () => {
+            expect(isMyEDIProtocol(new URL('myedi://server1'))).toBe(true);
+            expect(isMyEDIProtocol(new URL('myedi://server2'))).toBe(true);
+            expect(isMyEDIProtocol(new URL('myedi://my-server.com'))).toBe(true);
         });
     });
 });

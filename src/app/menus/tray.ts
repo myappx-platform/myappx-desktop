@@ -37,7 +37,7 @@ export default function createTrayMenu() {
 
                 ModalManager.addModal(
                     ModalConstants.SETTINGS_MODAL,
-                    'myappx-desktop://renderer/settings.html',
+                    'myedi-desktop://renderer/settings.html',
                     getLocalPreload('internalAPI.js'),
                     null,
                     mainWindow,

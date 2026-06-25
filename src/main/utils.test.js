@@ -12,7 +12,7 @@ jest.mock('electron', () => ({
             wasOpenedAsHidden: true,
         }),
         getAppPath: () => '/path/to/app',
-        userAgentFallback: 'Mozilla/5.0 MyAppxDesktop/6.2.1 Chrome/146.0 Electron/41.2.0 Safari/537.36 Mattermost/6.2.1',
+        userAgentFallback: 'Mozilla/5.0 MyEDIDesktop/6.2.1 Chrome/146.0 Electron/41.2.0 Safari/537.36 Mattermost/6.2.1',
         getVersion: () => '6.2.1',
     },
 }));
@@ -39,9 +39,9 @@ jest.mock('fs', () => ({
 
 describe('main/utils', () => {
     describe('composeUserAgent', () => {
-        it('should append a single MyAppxDesktop version token', () => {
+        it('should append a single MyEDIDesktop version token', () => {
             expect(Utils.composeUserAgent()).toBe(
-                'Mozilla/5.0 Chrome/146.0 Electron/41.2.0 Safari/537.36 MyAppxDesktop/6.2.1',
+                'Mozilla/5.0 Chrome/146.0 Electron/41.2.0 Safari/537.36 MyEDIDesktop/6.2.1',
             );
         });
 

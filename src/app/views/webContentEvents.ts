@@ -30,7 +30,7 @@ import ViewManager from 'common/views/viewManager';
 import ContextMenu from 'main/contextMenu';
 import {localizeMessage} from 'main/i18nManager';
 
-import {generateHandleConsoleMessage, isCustomProtocol, isMattermostProtocol} from './webContentEventsCommon';
+import {generateHandleConsoleMessage, isCustomProtocol, isMyEDIProtocol} from './webContentEventsCommon';
 
 import allowProtocolDialog from '../../main/security/allowProtocolDialog';
 import {applyUserAgent, composeUserAgent} from '../../main/utils';
@@ -160,8 +160,8 @@ export class WebContentsEventManager {
                 return PluginsPopUpsManager.handleNewWindow(webContentsId, details);
             }
 
-            // Check for mattermost protocol - handle internally
-            if (isMattermostProtocol(parsedURL)) {
+            // Check for myedi protocol - handle internally
+            if (isMyEDIProtocol(parsedURL)) {
                 NavigationManager.openLinkInNewTab(parsedURL);
                 return {action: 'deny'};
             }

@@ -66,7 +66,7 @@ jest.mock('main/contextMenu', () => jest.fn());
 jest.mock('main/utils', () => ({
     getWindowBoundaries: jest.fn(),
     getLocalPreload: (file) => file,
-    composeUserAgent: () => 'MyAppxDesktop/5.0.0',
+    composeUserAgent: () => 'MyEDIDesktop/5.0.0',
     applyUserAgent: jest.fn(),
     shouldHaveBackBar: jest.fn(),
 }));

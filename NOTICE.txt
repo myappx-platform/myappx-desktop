@@ -1,4 +1,4 @@
-MyAppx Desktop - Powered by Mattermost Desktop
+MyEDI Desktop - Powered by Mattermost Desktop
 
 Mattermost Desktop
 

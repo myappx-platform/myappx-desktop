@@ -42,7 +42,7 @@ import {
     SERVER_URL_CHANGED,
 } from 'common/communication';
 import Config from 'common/config';
-import {MYAPPX_PROTOCOL} from 'common/constants';
+import {MYEDI_PROTOCOL} from 'common/constants';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
@@ -68,6 +68,7 @@ import PreAuthManager from 'main/security/preAuthManager';
 import {applyLocalPreAuthSecretToServers} from 'main/security/preAuthSecretLoader';
 import sentryHandler from 'main/sentryHandler';
 import UserActivityMonitor from 'main/UserActivityMonitor';
+import {composeUserAgent} from 'main/utils';
 
 import {
     handleAppBeforeQuit,
@@ -230,6 +231,11 @@ function initializeBeforeAppReady() {
     app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
     log.info('[App.Initialize] Certificate error handling configured for intranet environment');
 
+    if (process.platform === 'win32') {
+        // Must match electron-builder appId so Start Menu / taskbar shortcuts use the exe icon.
+        app.setAppUserModelId('MyEDI.Desktop');
+    }
+
     if (process.env.NODE_ENV !== 'test') {
         app.enableSandbox();
     }
@@ -260,9 +266,9 @@ function initializeBeforeAppReady() {
     AllowProtocolDialog.init();
 
     if (isDev && process.env.NODE_ENV !== 'test') {
-        app.setAsDefaultProtocolClient('myappx-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
+        app.setAsDefaultProtocolClient('myedi-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
     } else {
-        app.setAsDefaultProtocolClient(MYAPPX_PROTOCOL);
+        app.setAsDefaultProtocolClient(MYEDI_PROTOCOL);
     }
 
     if (process.platform === 'darwin' || process.platform === 'win32') {
@@ -270,7 +276,7 @@ function initializeBeforeAppReady() {
     }
 
     protocol.registerSchemesAsPrivileged([
-        {scheme: 'myappx-desktop', privileges: {standard: true}},
+        {scheme: 'myedi-desktop', privileges: {standard: true}},
     ]);
 }
 
@@ -327,7 +333,7 @@ async function initializeAfterAppReady() {
     // Block all NTLM/Negotiate requests by default
     session.defaultSession.allowNTLMCredentialsForDomains('');
 
-    protocol.handle('myappx-desktop', (request: Request) => {
+    protocol.handle('myedi-desktop', (request: Request) => {
         const url = parseURL(request.url);
         if (!url) {
             return new Response('bad', {status: 400});
@@ -358,11 +364,11 @@ async function initializeAfterAppReady() {
 
     MainWindow.show();
 
-    app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
+    app.setAppUserModelId('MyEDI.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const url = parseURL(details.url);
-        if (url?.protocol === 'myappx-desktop:' && url?.pathname.endsWith('html')) {
+        if (url?.protocol === 'myedi-desktop:' && url?.pathname.endsWith('html')) {
             callback({
                 responseHeaders: {
                     ...details.responseHeaders,
@@ -380,24 +386,29 @@ async function initializeAfterAppReady() {
         downloadsManager.webRequestOnHeadersReceivedHandler(details, callback);
     });
 
-    // Inject X-MyAppx-Preauth-Secret header for all server requests (must register before ServerManager.init loads tabs)
+    // Normalize User-Agent and inject X-MyAppx-Preauth-Secret for all configured server requests
+    // (must register before ServerManager.init loads tabs)
     defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
         try {
             const server = ServerManager.lookupServerByURL(details.url);
 
-            if (server?.preAuthSecret) {
+            if (server) {
                 const requestHeaders = {...details.requestHeaders};
                 for (const key of Object.keys(requestHeaders)) {
-                    if (key.toLowerCase() === 'x-myappx-preauth-secret') {
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey === 'x-myappx-preauth-secret' || lowerKey === 'user-agent') {
                         delete requestHeaders[key];
                     }
                 }
-                requestHeaders['X-MyAppx-Preauth-Secret'] = server.preAuthSecret;
+                requestHeaders['User-Agent'] = composeUserAgent(DeveloperMode.get('browserOnly'));
+                if (server.preAuthSecret) {
+                    requestHeaders['X-MyAppx-Preauth-Secret'] = server.preAuthSecret;
+                }
                 callback({requestHeaders});
                 return;
             }
         } catch (error) {
-            log.debug('Error injecting preauth secret header:', {error});
+            log.debug('Error injecting server request headers:', {error});
         }
 
         callback({requestHeaders: details.requestHeaders});

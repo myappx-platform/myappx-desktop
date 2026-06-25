@@ -1,19 +1,19 @@
 {
-  "name": "myappx-desktop",
-  "productName": "MyAppxDesktop",
+  "name": "myedi-desktop",
+  "productName": "MyEDIDesktop",
   "version": "6.2.1",
-  "description": "MyAppx Desktop",
+  "description": "MyEDI Desktop",
   "main": "dist/index.js",
-  "author": "MyAppx, Software. <ken.longnan@gmail.com>;Mattermost, Inc. <feedback@mattermost.com>",
+  "author": "MyEDI Desktop, Software.",
   "license": "Apache-2.0",
-  "desktopName": "MyAppx.Desktop",
+  "desktopName": "MyEDI.Desktop",
   "homepage": "https://localhost:18443/desktop",
   "engines": {
     "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/myappx-platform/myappx-desktop.git"
+    "url": "git://myedi-desktop.git"
   },
   "scripts": {
     "postinstall": "patch-package && electron-builder install-app-deps",

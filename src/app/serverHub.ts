@@ -102,7 +102,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<{prefillURL?: string}, Server>(
             ModalConstants.NEW_SERVER_MODAL,
-            'myappx-desktop://renderer/newServer.html',
+            'myedi-desktop://renderer/newServer.html',
             getLocalPreload('internalAPI.js'),
             {prefillURL},
             mainWindow,
@@ -143,7 +143,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<UniqueServerWithPermissions, {server: Server; permissions: Permissions}>(
             ModalConstants.EDIT_SERVER_MODAL,
-            'myappx-desktop://renderer/editServer.html',
+            'myedi-desktop://renderer/editServer.html',
             getLocalPreload('internalAPI.js'),
             {server: server.toUniqueServer(), permissions: PermissionsManager.getForServer(server) ?? {}},
             mainWindow);
@@ -175,7 +175,7 @@ export class ServerHub {
 
         const modalPromise = ModalManager.addModal<null, boolean>(
             ModalConstants.REMOVE_SERVER_MODAL,
-            'myappx-desktop://renderer/removeServer.html',
+            'myedi-desktop://renderer/removeServer.html',
             getLocalPreload('internalAPI.js'),
             null,
             mainWindow,

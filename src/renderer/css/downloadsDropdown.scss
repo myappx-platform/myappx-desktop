@@ -92,6 +92,10 @@ body {
                         @include file-icon('assets/thumbnails/myappx.svg');
                         background-size: 32px 32px;
                     }
+                    &.myedi {
+                        @include file-icon('assets/thumbnails/myedi.svg');
+                        background-size: 32px 32px;
+                    }
                     &.text {
                         @include file-icon('assets/thumbnails/text.svg');
                     }

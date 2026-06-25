@@ -75,7 +75,7 @@ export function getLocalPreload(file: string) {
 }
 
 /** Matches electron-builder productName in package.json. */
-const DESKTOP_UA_PRODUCT = 'MyAppxDesktop';
+const DESKTOP_UA_PRODUCT = 'MyEDIDesktop';
 
 export function composeUserAgent(browserMode?: boolean) {
     const baseUserAgent = app.userAgentFallback.split(' ');

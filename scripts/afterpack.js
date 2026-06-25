@@ -24,10 +24,10 @@ function fixSetuid(context) {
 function getAppFileName(context) {
     switch (context.electronPlatformName) {
     case 'win32':
-        return 'MyAppxDesktop.exe';
+        return 'MyEDIDesktop.exe';
     case 'darwin':
     case 'mas':
-        return 'MyAppxDesktop.app';
+        return 'MyEDIDesktop.app';
     case 'linux':
         return context.packager.executableName;
     default:

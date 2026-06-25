@@ -17,7 +17,7 @@ const defaultMenuOptions = {
         let isInternalSrc;
         try {
             const srcurl = parseURL(p.srcURL);
-            isInternalSrc = srcurl?.protocol === 'myappx-desktop:';
+            isInternalSrc = srcurl?.protocol === 'myedi-desktop:';
         } catch (err) {
             isInternalSrc = false;
         }

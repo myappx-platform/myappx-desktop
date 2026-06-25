@@ -18,17 +18,17 @@ function getMacVersions() {
     return {bundleShortVersion: stableVersion, bundleVersion: buildVersion};
 }
 
-// Must match MYAPPX_DESKTOP_BASE_URL in src/common/constants.ts
-const MYAPPX_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
+// Must match MYEDI_DESKTOP_BASE_URL in src/common/constants.ts
+const MYEDI_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
 
 const config = {
     publish: [
         {
             provider: 'generic',
-            url: MYAPPX_DESKTOP_BASE_URL,
+            url: MYEDI_DESKTOP_BASE_URL,
         },
     ],
-    appId: 'MyAppx.Desktop',
+    appId: 'MyEDI.Desktop',
     artifactName: '${version}/${name}-${version}-${os}-${arch}.${ext}',
     directories: {
         buildResources: 'src/assets',
@@ -65,9 +65,9 @@ const config = {
     ],
     protocols: [
         {
-            name: 'MyAppx',
+            name: 'MyEDI',
             schemes: [
-                'myappx',
+                'myedi',
             ],
         },
     ],
@@ -76,7 +76,7 @@ const config = {
     afterAllArtifactBuild: 'scripts/afterbuild.js',
     deb: {
         artifactName: '${version}/${name}_${version}-1_${arch}.${ext}',
-        synopsis: 'MyAppx Desktop',
+        synopsis: 'MyEDI Desktop',
         depends: [
             'libnotify4',
             'libxtst6',
@@ -99,7 +99,7 @@ const config = {
             'rpm',
             'flatpak',
         ],
-        appId: 'MyAppx.Desktop',
+        appId: 'MyEDI.Desktop',
         extraFiles: [
             {
                 filter: [
@@ -210,14 +210,14 @@ const config = {
     nsis: {
         artifactName: '${version}/${name}-setup-${version}-win.${ext}',
         packElevateHelper: false,
-        shortcutName: 'MyAppx Desktop',
-        uninstallDisplayName: 'MyAppx Desktop',
+        shortcutName: 'MyEDI Desktop',
+        uninstallDisplayName: 'MyEDI Desktop',
         include: 'scripts/installer.nsh',
     },
     msi: {
         additionalWixArgs: ['-ext', 'WixUtilExtension'],
-        shortcutName: 'MyAppx Desktop',
-        upgradeCode: '{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}',
+        shortcutName: 'MyEDI Desktop',
+        upgradeCode: '{A0B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C0D}',
         perMachine: true,
     },
     rpm: {

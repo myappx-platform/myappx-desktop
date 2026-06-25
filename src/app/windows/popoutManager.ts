@@ -153,7 +153,7 @@ export class PopoutManager {
             this.handleViewUpdated(viewId);
             window.browserWindow.show();
         });
-        window.browserWindow.loadURL('myappx-desktop://renderer/popout.html').catch(
+        window.browserWindow.loadURL('myedi-desktop://renderer/popout.html').catch(
             (reason) => {
                 log.error('failed to load', {reason});
             });
