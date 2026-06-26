@@ -69,16 +69,6 @@ const UpdateAvailable = ({item, appName, activeItem}: OwnProps) => {
                         />
                     </LoadingWrapper>
                 </button>
-                <a
-                    className='DownloadsDropdown__Update__Details__Changelog'
-                    onClick={() => window.desktop.openChangelogLink()}
-                    href='#'
-                >
-                    <FormattedMessage
-                        id='renderer.downloadsDropdown.Update.ViewChangelog'
-                        defaultMessage='View Changelog'
-                    />
-                </a>
             </div>
         </div>
     );
