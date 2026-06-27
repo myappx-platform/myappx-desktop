@@ -177,6 +177,13 @@ function ConfigureServer({
             };
         }
 
+        if (validationResult?.status === URLValidationStatus.NotMyAppx) {
+            message = {
+                type: STATUS.ERROR,
+                value: formatMessage({id: 'renderer.components.configureServer.url.notMyAppx', defaultMessage: 'Only MyAppx servers can be added. Enter a MyAppx server URL (for example https://localhost:18443/webui/).'}),
+            };
+        }
+
         if (validationResult?.status === URLValidationStatus.URLNotMatched) {
             message = {
                 type: STATUS.WARNING,

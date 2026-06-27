@@ -33,6 +33,7 @@ import ServerManager from 'common/servers/serverManager';
 import {URLValidationStatus} from 'common/utils/constants';
 import {isMagicLinkUrl, isValidURI, isValidURL, parseURL} from 'common/utils/url';
 import PermissionsManager from 'main/security/permissionsManager';
+import {isMyAppxServerUrl} from 'main/server/myAppxServerUrl';
 import {ServerInfo} from 'main/server/serverInfo';
 import {getLocalPreload} from 'main/utils';
 
@@ -254,6 +255,11 @@ export class ServerHub {
             };
         }
 
+        const nonMyAppxResult = this.rejectNonMyAppxServerUrl(parsedURL, originalURL);
+        if (nonMyAppxResult) {
+            return nonMyAppxResult;
+        }
+
         // Try and get remote info from the most secure URL, otherwise use the insecure one
         let remoteURL = secureURL;
         const insecureURL = parseURL(secureURL.toString().replace(/^https:/, 'http:'));
@@ -380,6 +386,11 @@ export class ServerHub {
 
         const remoteServerName = remoteInfo.siteName === 'Mattermost' ? remoteURL.host.split('.')[0] : remoteInfo.siteName;
 
+        const nonMyAppxRemoteResult = this.rejectNonMyAppxServerUrl(remoteURL, originalURL);
+        if (nonMyAppxRemoteResult) {
+            return nonMyAppxRemoteResult;
+        }
+
         // If we were only able to connect via HTTP, warn the user that the connection is not secure
         if (remoteURL.protocol === 'http:') {
             log.info('handleServerURLValidation: Remote URL is HTTP, returning Insecure');
@@ -396,6 +407,11 @@ export class ServerHub {
             log.verbose('handleServerURLValidation: Remote URL does not match Site URL, checking Site URL');
             const parsedSiteURL = parseURL(remoteInfo.siteURL);
             if (parsedSiteURL) {
+                const nonMyAppxSiteResult = this.rejectNonMyAppxServerUrl(parsedSiteURL, originalURL);
+                if (nonMyAppxSiteResult) {
+                    return nonMyAppxSiteResult;
+                }
+
                 // Check the Site URL as well to see if it's already pre-configured
                 const existingServer = ServerManager.lookupServerByURL(parsedSiteURL, true);
                 if (existingServer && existingServer.id !== currentId) {
@@ -450,6 +466,18 @@ export class ServerHub {
      * Helper functions
      */
 
+    private rejectNonMyAppxServerUrl = (url: URL, originalURL?: string): URLValidationResult | null => {
+        if (isMyAppxServerUrl(url)) {
+            return null;
+        }
+
+        log.debug('handleServerURLValidation: URL is not a MyAppx server');
+        return {
+            status: URLValidationStatus.NotMyAppx,
+            validatedURL: (originalURL ?? url.toString()).replace(/\/$/, ''),
+        };
+    };
+
     private testRemoteServer = async (parsedURL: URL): Promise<ServerTestResult> => {
         const server = new MattermostServer({name: 'temp', url: parsedURL.toString()}, false, undefined);
         const serverInfo = new ServerInfo(server);
@@ -475,6 +503,12 @@ export class ServerHub {
 
     private handleAddServer = async (event: IpcMainEvent, server: Server) => {
         log.debug('handleAddServer');
+
+        const parsedURL = parseURL(server.url);
+        if (!parsedURL || !isMyAppxServerUrl(parsedURL)) {
+            log.warn('handleAddServer: rejected non-MyAppx server URL', {url: server.url});
+            return;
+        }
 
         ServerManager.addServer(server);
     };

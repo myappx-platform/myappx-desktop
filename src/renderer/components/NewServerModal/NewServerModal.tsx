@@ -152,7 +152,8 @@ class NewServerModal extends React.PureComponent<Props, State> {
 
     isServerURLErrored = () => {
         return this.state.validationResult?.status === URLValidationStatus.Invalid ||
-            this.state.validationResult?.status === URLValidationStatus.Missing;
+            this.state.validationResult?.status === URLValidationStatus.Missing ||
+            this.state.validationResult?.status === URLValidationStatus.NotMyAppx;
     };
 
     getServerURLMessage = () => {
@@ -211,6 +212,14 @@ class NewServerModal extends React.PureComponent<Props, State> {
                 value: this.props.intl.formatMessage({
                     id: 'renderer.components.newServerModal.warning.notMattermost',
                     defaultMessage: 'The server URL provided does not appear to point to a valid Mattermost server. Please verify the URL and check your connection.',
+                }),
+            };
+        case URLValidationStatus.NotMyAppx:
+            return {
+                type: STATUS.ERROR,
+                value: this.props.intl.formatMessage({
+                    id: 'renderer.components.newServerModal.error.notMyAppx',
+                    defaultMessage: 'Only MyAppx servers can be added. Enter a MyAppx server URL (for example https://localhost:18443/webui/).',
                 }),
             };
         case URLValidationStatus.URLNotMatched:

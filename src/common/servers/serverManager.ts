@@ -20,6 +20,7 @@ import Config from 'common/config';
 import {Logger} from 'common/log';
 import {MattermostServer} from 'common/servers/MattermostServer';
 import {getFormattedPathName, isInternalURL, parseURL} from 'common/utils/url';
+import {isMyAppxServerUrl} from 'main/server/myAppxServerUrl';
 
 import type {ConfigServer, Server} from 'types/config';
 import type {RemoteInfo} from 'types/server';
@@ -88,6 +89,12 @@ export class ServerManager extends EventEmitter {
     addServer = (server: Server, initialLoadURL?: URL) => {
         log.debug('addServer');
 
+        const parsedURL = parseURL(server.url);
+        if (!parsedURL || !isMyAppxServerUrl(parsedURL)) {
+            log.warn('addServer: rejected non-MyAppx server URL', {url: server.url});
+            return undefined;
+        }
+
         const mattermostServer = this.createServer(server, false, initialLoadURL);
         this.addServerToMap(mattermostServer, true);
         return mattermostServer;
@@ -146,6 +153,12 @@ export class ServerManager extends EventEmitter {
 
         if (existingServer.isPredefined) {
             log.warn('Cannot edit predefined server', {serverId: existingServer.id});
+            return existingServer;
+        }
+
+        const parsedURL = parseURL(server.url);
+        if (!parsedURL || !isMyAppxServerUrl(parsedURL)) {
+            log.warn('editServer: rejected non-MyAppx server URL', {serverId, url: server.url});
             return existingServer;
         }
 

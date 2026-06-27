@@ -51,6 +51,7 @@ export const URLValidationStatus = {
     Insecure: 'INSECURE',
     URLExists: 'URL_EXISTS',
     NotMattermost: 'NOT_MATTERMOST',
+    NotMyAppx: 'NOT_MYAPPX',
     URLNotMatched: 'URL_NOT_MATCHED',
     URLUpdated: 'URL_UPDATED',
     PreAuthRequired: 'PREAUTH_REQUIRED',

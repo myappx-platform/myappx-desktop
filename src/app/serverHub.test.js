@@ -12,6 +12,8 @@ import {getLocalPreload} from 'main/utils';
 
 import {ServerHub} from './serverHub';
 
+const MYAPPX_TEST_URL = 'https://localhost:18443/webui';
+
 jest.mock('electron', () => ({
     app: {
         getPath: jest.fn(() => '/valid/downloads/path'),
@@ -127,7 +129,7 @@ describe('app/serverViewState', () => {
         it('should add new server to the config', async () => {
             const data = {
                 name: 'new-server',
-                url: 'http://new-server.com',
+                url: 'https://localhost:18443/webui',
             };
             const promise = Promise.resolve(data);
             ModalManager.addModal.mockReturnValue(promise);
@@ -139,7 +141,7 @@ describe('app/serverViewState', () => {
             expect(serversCopy).toContainEqual(expect.objectContaining({
                 id: 'server-4',
                 name: 'new-server',
-                url: 'http://new-server.com',
+                url: 'https://localhost:18443/webui',
             }));
         });
     });
@@ -312,43 +314,43 @@ describe('app/serverViewState', () => {
         });
 
         it('should include HTTPS when missing', async () => {
-            const result = await serverViewState.handleServerURLValidation({}, 'server.com');
+            const result = await serverViewState.handleServerURLValidation({}, 'localhost:18443/webui');
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should correct typos in the protocol', async () => {
-            const result = await serverViewState.handleServerURLValidation({}, 'htpst://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, 'htpst://localhost:18443/webui');
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should replace HTTP with HTTPS when applicable', async () => {
-            const result = await serverViewState.handleServerURLValidation({}, 'http://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, 'http://localhost:18443/webui');
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should generate a warning when the server already exists', async () => {
-            ServerManager.lookupServerByURL.mockReturnValue({id: 'server-1', url: new URL('https://server.com')});
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            ServerManager.lookupServerByURL.mockReturnValue({id: 'server-1', url: new URL(MYAPPX_TEST_URL)});
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.URLExists);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should generate a warning if the server exists when editing', async () => {
-            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL('https://server.com')});
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com', 'server-2');
+            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL(MYAPPX_TEST_URL)});
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL, 'server-2');
             expect(result.status).toBe(URLValidationStatus.URLExists);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
             expect(result.existingServerName).toBe('Test Server 1');
         });
 
         it('should not generate a warning if editing the same server', async () => {
-            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL('https://server.com')});
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com', 'server-1');
+            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL(MYAPPX_TEST_URL)});
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL, 'server-1');
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should not update the URL if the user is typing https://', async () => {
@@ -372,15 +374,21 @@ describe('app/serverViewState', () => {
             expect(result.status).toBe(URLValidationStatus.Invalid);
             result = await serverViewState.handleServerURLValidation({}, 'https://');
             expect(result.status).toBe(URLValidationStatus.Invalid);
-            result = await serverViewState.handleServerURLValidation({}, 'https://a');
+            result = await serverViewState.handleServerURLValidation({}, 'https://localhost:18443/webui');
             expect(result.status).toBe(URLValidationStatus.OK);
         });
 
         it('should update the URL if the user is typing something other than http', async () => {
             let result = await serverViewState.handleServerURLValidation({}, 'abchttp');
-            expect(result.status).toBe(URLValidationStatus.OK);
+            expect(result.status).toBe(URLValidationStatus.NotMyAppx);
             result = await serverViewState.handleServerURLValidation({}, 'abchttps');
-            expect(result.status).toBe(URLValidationStatus.OK);
+            expect(result.status).toBe(URLValidationStatus.NotMyAppx);
+        });
+
+        it('should reject non-MyAppx servers such as Mattermost', async () => {
+            const result = await serverViewState.handleServerURLValidation({}, 'https://mattermost.example.com:8065');
+            expect(result.status).toBe(URLValidationStatus.NotMyAppx);
+            expect(ServerInfo).not.toHaveBeenCalled();
         });
 
         it('should attempt HTTP when HTTPS fails, and generate a warning', async () => {
@@ -401,12 +409,12 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'http://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, 'http://localhost:18443/webui');
             expect(result.status).toBe(URLValidationStatus.Insecure);
-            expect(result.validatedURL).toBe('http://server.com/');
+            expect(result.validatedURL).toBe('http://localhost:18443/webui');
         });
 
-        it('should be able to recognize localhost with a port and add the appropriate prefix', async () => {
+        it('should reject localhost on a non-MyAppx port', async () => {
             ServerInfo.mockImplementation(({url}) => ({
                 pingServer: jest.fn().mockImplementation(() => ({
                     status: 'OK',
@@ -425,8 +433,7 @@ describe('app/serverViewState', () => {
             }));
 
             const result = await serverViewState.handleServerURLValidation({}, 'localhost:8065');
-            expect(result.status).toBe(URLValidationStatus.Insecure);
-            expect(result.validatedURL).toBe('http://localhost:8065/');
+            expect(result.status).toBe(URLValidationStatus.NotMyAppx);
         });
 
         it('should show a warning when the ping request times out', async () => {
@@ -436,8 +443,14 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://not-server.com');
+            const result = await serverViewState.handleServerURLValidation({}, 'https://not-server.com:18443/webui');
             expect(result.status).toBe(URLValidationStatus.NotMattermost);
+            expect(result.validatedURL).toBe('https://not-server.com:18443/webui');
+        });
+
+        it('should reject URLs that do not look like MyAppx servers', async () => {
+            const result = await serverViewState.handleServerURLValidation({}, 'https://not-server.com');
+            expect(result.status).toBe(URLValidationStatus.NotMyAppx);
             expect(result.validatedURL).toBe('https://not-server.com');
         });
 
@@ -450,14 +463,14 @@ describe('app/serverViewState', () => {
                     return {
                         serverVersion: '7.8.0',
                         siteName: 'Mattermost',
-                        siteURL: 'https://mainserver.com/',
+                        siteURL: 'https://mainserver.com:18443/webui/',
                     };
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.URLUpdated);
-            expect(result.validatedURL).toBe('https://mainserver.com/');
+            expect(result.validatedURL).toBe('https://mainserver.com:18443/webui/');
         });
 
         it('should not update the users URL when the Site URL is blank', async () => {
@@ -474,9 +487,9 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should warn the user when the Site URL is different but unreachable', async () => {
@@ -485,20 +498,20 @@ describe('app/serverViewState', () => {
                     status: 'OK',
                 })),
                 fetchConfigData: jest.fn().mockImplementation(() => {
-                    if (url === 'https://mainserver.com/') {
+                    if (url === 'https://mainserver.com:18443/webui/') {
                         throw new Error('Site URL unreachable');
                     }
                     return {
                         serverVersion: '7.8.0',
                         siteName: 'Mattermost',
-                        siteURL: 'https://mainserver.com/',
+                        siteURL: 'https://mainserver.com:18443/webui/',
                     };
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.URLNotMatched);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should preserve the original URL with subpaths when validation fails all the way down', async () => {
@@ -508,9 +521,9 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://not-server.com/some/deep/path');
+            const result = await serverViewState.handleServerURLValidation({}, 'https://not-server.com:18443/webui/some/deep/path');
             expect(result.status).toBe(URLValidationStatus.NotMattermost);
-            expect(result.validatedURL).toBe('https://not-server.com/some/deep/path');
+            expect(result.validatedURL).toBe('https://not-server.com:18443/webui/some/deep/path');
         });
 
         it('should preserve the original URL with subpaths when entered without protocol', async () => {
@@ -520,38 +533,39 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'not-server.com/some/path');
+            const result = await serverViewState.handleServerURLValidation({}, 'not-server.com:18443/webui/some/path');
             expect(result.status).toBe(URLValidationStatus.NotMattermost);
-            expect(result.validatedURL).toBe('https://not-server.com/some/path');
+            expect(result.validatedURL).toBe('https://not-server.com:18443/webui/some/path');
         });
 
         it('should use the matched URL when a subpath-stripped URL finds a valid server', async () => {
+            const expectedUrl = 'https://localhost:18443/webui/';
             ServerInfo.mockImplementation(({url}) => ({
                 pingServer: jest.fn().mockImplementation(() => {
-                    if (url !== 'https://server.com/') {
+                    if (url.toString().replace(/\/$/, '') !== expectedUrl.replace(/\/$/, '')) {
                         throw new Error();
                     }
                     return {status: 'OK'};
                 }),
                 fetchConfigData: jest.fn().mockImplementation(() => {
-                    if (url !== 'https://server.com/') {
+                    if (url.toString().replace(/\/$/, '') !== expectedUrl.replace(/\/$/, '')) {
                         throw new Error();
                     }
                     return {
                         serverVersion: '7.8.0',
                         siteName: 'Mattermost',
-                        siteURL: 'https://server.com/',
+                        siteURL: expectedUrl,
                     };
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com/extra/path');
-            expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            const result = await serverViewState.handleServerURLValidation({}, 'https://localhost:18443/webui/extra/path');
+            expect(result.status).toBe(URLValidationStatus.URLUpdated);
+            expect(result.validatedURL).toBe('https://localhost:18443/webui/');
         });
 
         it('should warn the user when the Site URL already exists as another server', async () => {
-            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL('https://mainserver.com')});
+            ServerManager.lookupServerByURL.mockReturnValue({name: 'Test Server 1', id: 'server-1', url: new URL('https://mainserver.com:18443/webui')});
             ServerInfo.mockImplementation(() => ({
                 pingServer: jest.fn().mockImplementation(() => ({
                     status: 'OK',
@@ -560,14 +574,14 @@ describe('app/serverViewState', () => {
                     return {
                         serverVersion: '7.8.0',
                         siteName: 'Mattermost',
-                        siteURL: 'https://mainserver.com',
+                        siteURL: 'https://mainserver.com:18443/webui',
                     };
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.URLExists);
-            expect(result.validatedURL).toBe('https://mainserver.com/');
+            expect(result.validatedURL).toBe('https://mainserver.com:18443/webui');
             expect(result.existingServerName).toBe('Test Server 1');
         });
     });
