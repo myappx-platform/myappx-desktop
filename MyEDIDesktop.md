@@ -21,3 +21,7 @@ Before using the desktop client, ensure MyAppx Server is already running and rea
 
 - **Application**: `C:\Users\ken\AppData\Local\Programs\myedi-desktop`
 - **Logs**: `C:\Users\ken\AppData\Roaming\MyEDIDesktop\logs`
+
+## ToDo
+
+Tab / Window 之间的Session共享或隔离
