@@ -409,6 +409,16 @@ export const joinCallOptsSchema = Joi.object({
     startingCall: Joi.boolean(),
 });
 
+export const pageActSchema = Joi.object({
+    op: Joi.string().valid('fill_form', 'click').required(),
+    ref: Joi.string().pattern(/^e\d+$/).required(),
+    value: Joi.when('op', {
+        is: 'fill_form',
+        then: Joi.string().max(4000).required(),
+        otherwise: Joi.string().max(4000).allow('').optional(),
+    }),
+});
+
 export const desktopSourcesOptsSchema = Joi.object({
     types: Joi.array().items(Joi.string().valid('screen', 'window')).required(),
     thumbnailSize: Joi.object({

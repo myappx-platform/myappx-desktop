@@ -253,6 +253,9 @@ export const UPDATE_POPOUT_TITLE_TEMPLATE = 'update-popout-title-template';
 // View close
 export const WINDOW_CLOSE = 'window-close';
 
+export const PAGE_SNAPSHOT = 'page-snapshot';
+export const PAGE_ACT = 'page-act';
+
 // View limit events
 export const VIEW_LIMIT_UPDATED = 'view-limit-updated';
 export const GET_IS_VIEW_LIMIT_REACHED = 'get-is-view-limit-reached';

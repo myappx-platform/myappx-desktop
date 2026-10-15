@@ -13,6 +13,8 @@ import Joi from 'joi';
 import MainWindow from 'app/mainWindow/mainWindow';
 import MenuManager from 'app/menus';
 import NavigationManager from 'app/navigationManager';
+import {applyCdpPort} from 'app/pageCompanion/cdpPort';
+import pageCompanion from 'app/pageCompanion/pageCompanion';
 import {setupBadge} from 'app/system/badge';
 import Tray from 'app/system/tray/tray';
 import TabManager from 'app/tabs/tabManager';
@@ -34,6 +36,8 @@ import {
     DOUBLE_CLICK_ON_WINDOW,
     TOGGLE_SECURE_INPUT,
     GET_APP_INFO,
+    PAGE_ACT,
+    PAGE_SNAPSHOT,
     SHOW_SETTINGS_WINDOW,
     DEVELOPER_MODE_UPDATED,
     SERVER_ADDED,
@@ -47,7 +51,7 @@ import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
 import {setTestField} from 'common/utils/util';
-import {ipcValidate} from 'common/Validator';
+import {ipcValidate, pageActSchema} from 'common/Validator';
 import ViewManager from 'common/views/viewManager';
 import AppVersionManager from 'main/AppVersionManager';
 import AutoLauncher from 'main/AutoLauncher';
@@ -212,6 +216,7 @@ function initializeAppEventListeners() {
     app.on('browser-window-created', handleAppBrowserWindowCreated);
     app.on('activate', () => MainWindow.show());
     app.on('before-quit', handleAppBeforeQuit);
+    app.on('will-quit', () => pageCompanion.stop());
     app.on('certificate-error', handleAppCertificateError);
     app.on('child-process-gone', handleChildProcessGone);
     app.on('will-finish-launching', handleAppWillFinishLaunching);
@@ -229,6 +234,7 @@ function initializeBeforeAppReady() {
     // Note: This is acceptable for internal-only applications that don't access the internet
     app.commandLine.appendSwitch('ignore-certificate-errors');
     app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
+    applyCdpPort((key, value) => app.commandLine.appendSwitch(key, value), process.env.MYAPPX_CDP_PORT);
     log.info('[App.Initialize] Certificate error handling configured for intranet environment');
 
     if (process.platform === 'win32') {
@@ -291,6 +297,11 @@ function initializeInterCommunicationEventListeners() {
         Joi.string().allow('').required(),
     ]));
     ipcMain.handle(GET_APP_INFO, handleAppVersion);
+    ipcMain.handle(PAGE_SNAPSHOT, () => pageCompanion.snapshot());
+    ipcMain.handle(PAGE_ACT, ipcValidate(
+        (_event: IpcMainInvokeEvent, action: {op: string; ref: string; value?: string}) => pageCompanion.act(action),
+        [pageActSchema],
+    ));
 
     if (process.platform !== 'darwin') {
         ipcMain.on(OPEN_APP_MENU, handleOpenAppMenu);
