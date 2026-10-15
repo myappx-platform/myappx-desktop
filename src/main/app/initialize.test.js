@@ -117,7 +117,7 @@ const isDev = false;
 jest.mock('electron-is-dev', () => isDev);
 
 jest.mock('common/constants', () => ({
-    MYEDI_PROTOCOL: 'myedi',
+    MYAPPX_PROTOCOL: 'myappx',
 }));
 
 jest.mock('app/serverHub', () => ({

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate MyEDI Desktop icon assets from myedi desktop.png."""
+"""Generate MyAppx Desktop icon assets from myappx desktop.png."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / 'src' / 'assets'
 LINUX = ASSETS / 'linux'
 WINDOWS = ASSETS / 'windows'
-SOURCE = ASSETS / 'myedi desktop.png'
-MASTER_SOURCE = ASSETS / 'myedi-appicon-master.png'
+SOURCE = ASSETS / 'myappx desktop.png'
+MASTER_SOURCE = ASSETS / 'myappx-appicon-master.png'
 
 OUTPUTS = {
     ASSETS / 'appicon_48.png': 48,
@@ -152,14 +152,14 @@ def main() -> int:
         )
         print(f'Wrote {tray_path}')
 
-    write_embedded_svg(resize_logo(source, 1024), ASSETS / 'myedi-logo.svg', 1024)
-    print(f'Wrote {ASSETS / "myedi-logo.svg"}')
+    write_embedded_svg(resize_logo(source, 1024), ASSETS / 'myappx-logo.svg', 1024)
+    print(f'Wrote {ASSETS / "myappx-logo.svg"}')
 
     write_embedded_svg(resize_logo(source, 256), ASSETS / 'icon.svg', 256)
     print(f'Wrote {ASSETS / "icon.svg"}')
 
-    write_embedded_svg(resize_logo(source, 1024), ASSETS / 'myedi-appicon.svg', 1024)
-    print(f'Wrote {ASSETS / "myedi-appicon.svg"}')
+    write_embedded_svg(resize_logo(source, 1024), ASSETS / 'myappx-appicon.svg', 1024)
+    print(f'Wrote {ASSETS / "myappx-appicon.svg"}')
 
     return 0
 

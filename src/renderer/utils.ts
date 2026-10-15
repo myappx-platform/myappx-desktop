@@ -48,7 +48,7 @@ const getDownloadingFileStatus = (item: DownloadedItem) => {
 
 const getIconClassName = (file: DownloadedItem) => {
     if (file.type === 'update') {
-        return 'myedi';
+        return 'myappx';
     }
 
     if (!file.mimeType) {

@@ -56,7 +56,7 @@ jest.mock('main/app/utils', () => ({
 }));
 
 jest.mock('common/constants', () => ({
-    MYEDI_PROTOCOL: 'myedi',
+    MYAPPX_PROTOCOL: 'myappx',
     MAX_URL_LENGTH: 8192,
 }));
 

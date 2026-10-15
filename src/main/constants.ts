@@ -31,7 +31,7 @@ export function updatePaths(emit = false) {
     appVersionJson = path.join(userDataPath, 'app-state.json');
 
     // package with build-in certificate.json
-    // certificateStorePath = path.resolve(path.resolve(app.getAppPath(), 'assets'), 'certificate-myedi.json');
+    // certificateStorePath = path.resolve(path.resolve(app.getAppPath(), 'assets'), 'certificate-myappx.json');
     certificateStorePath = path.resolve(userDataPath, 'certificate.json');
     trustedOriginsStoreFile = path.resolve(userDataPath, 'trustedOrigins.json');
     boundsInfoPath = path.join(userDataPath, 'bounds-info.json');

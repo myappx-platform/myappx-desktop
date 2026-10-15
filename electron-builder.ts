@@ -18,17 +18,17 @@ function getMacVersions() {
     return {bundleShortVersion: stableVersion, bundleVersion: buildVersion};
 }
 
-// Must match MYEDI_DESKTOP_BASE_URL in src/common/constants.ts
-const MYEDI_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
+// Must match MYAPPX_DESKTOP_BASE_URL in src/common/constants.ts
+const MYAPPX_DESKTOP_BASE_URL = 'https://localhost:18443/desktop';
 
 const config = {
     publish: [
         {
             provider: 'generic',
-            url: MYEDI_DESKTOP_BASE_URL,
+            url: MYAPPX_DESKTOP_BASE_URL,
         },
     ],
-    appId: 'MyEDI.Desktop',
+    appId: 'MyAppx.Desktop',
     artifactName: '${version}/${name}-${version}-${os}-${arch}.${ext}',
     directories: {
         buildResources: 'src/assets',
@@ -65,9 +65,9 @@ const config = {
     ],
     protocols: [
         {
-            name: 'MyEDI',
+            name: 'MyAppx',
             schemes: [
-                'myedi',
+                'myappx',
             ],
         },
     ],
@@ -76,7 +76,7 @@ const config = {
     afterAllArtifactBuild: 'scripts/afterbuild.js',
     deb: {
         artifactName: '${version}/${name}_${version}-1_${arch}.${ext}',
-        synopsis: 'MyEDI Desktop',
+        synopsis: 'MyAppx Desktop',
         depends: [
             'libnotify4',
             'libxtst6',
@@ -99,7 +99,7 @@ const config = {
             'rpm',
             'flatpak',
         ],
-        appId: 'MyEDI.Desktop',
+        appId: 'MyAppx.Desktop',
         extraFiles: [
             {
                 filter: [
@@ -210,13 +210,13 @@ const config = {
     nsis: {
         artifactName: '${version}/${name}-setup-${version}-win.${ext}',
         packElevateHelper: false,
-        shortcutName: 'MyEDI Desktop',
-        uninstallDisplayName: 'MyEDI Desktop',
+        shortcutName: 'MyAppx Desktop',
+        uninstallDisplayName: 'MyAppx Desktop',
         include: 'scripts/installer.nsh',
     },
     msi: {
         additionalWixArgs: ['-ext', 'WixUtilExtension'],
-        shortcutName: 'MyEDI Desktop',
+        shortcutName: 'MyAppx Desktop',
         upgradeCode: '{A0B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C0D}',
         perMachine: true,
     },

@@ -187,7 +187,7 @@ export class PageCompanion {
             await this.request('initialize', {
                 protocolVersion: '2024-11-05',
                 capabilities: {},
-                clientInfo: {name: 'myedi-page-companion', version: '1.0.0'},
+                clientInfo: {name: 'myappx-page-companion', version: '1.0.0'},
             });
             this.notify('notifications/initialized', {});
             this.ready = true;

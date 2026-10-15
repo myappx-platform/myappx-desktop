@@ -46,7 +46,7 @@ import {
     SERVER_URL_CHANGED,
 } from 'common/communication';
 import Config from 'common/config';
-import {MYEDI_PROTOCOL} from 'common/constants';
+import {MYAPPX_PROTOCOL} from 'common/constants';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
@@ -239,7 +239,7 @@ function initializeBeforeAppReady() {
 
     if (process.platform === 'win32') {
         // Must match electron-builder appId so Start Menu / taskbar shortcuts use the exe icon.
-        app.setAppUserModelId('MyEDI.Desktop');
+        app.setAppUserModelId('MyAppx.Desktop');
     }
 
     if (process.env.NODE_ENV !== 'test') {
@@ -272,9 +272,9 @@ function initializeBeforeAppReady() {
     AllowProtocolDialog.init();
 
     if (isDev && process.env.NODE_ENV !== 'test') {
-        app.setAsDefaultProtocolClient('myedi-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
+        app.setAsDefaultProtocolClient('myappx-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
     } else {
-        app.setAsDefaultProtocolClient(MYEDI_PROTOCOL);
+        app.setAsDefaultProtocolClient(MYAPPX_PROTOCOL);
     }
 
     if (process.platform === 'darwin' || process.platform === 'win32') {
@@ -282,7 +282,7 @@ function initializeBeforeAppReady() {
     }
 
     protocol.registerSchemesAsPrivileged([
-        {scheme: 'myedi-desktop', privileges: {standard: true}},
+        {scheme: 'myappx-desktop', privileges: {standard: true}},
     ]);
 }
 
@@ -344,7 +344,7 @@ async function initializeAfterAppReady() {
     // Block all NTLM/Negotiate requests by default
     session.defaultSession.allowNTLMCredentialsForDomains('');
 
-    protocol.handle('myedi-desktop', (request: Request) => {
+    protocol.handle('myappx-desktop', (request: Request) => {
         const url = parseURL(request.url);
         if (!url) {
             return new Response('bad', {status: 400});
@@ -375,11 +375,11 @@ async function initializeAfterAppReady() {
 
     MainWindow.show();
 
-    app.setAppUserModelId('MyEDI.Desktop'); // Use explicit AppUserModelID
+    app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const url = parseURL(details.url);
-        if (url?.protocol === 'myedi-desktop:' && url?.pathname.endsWith('html')) {
+        if (url?.protocol === 'myappx-desktop:' && url?.pathname.endsWith('html')) {
             callback({
                 responseHeaders: {
                     ...details.responseHeaders,

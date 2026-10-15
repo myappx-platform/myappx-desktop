@@ -1,4 +1,4 @@
-# MyEDI Desktop - Documentation
+# MyAppx Desktop - Documentation
 
 ## Development
 
@@ -19,8 +19,8 @@ Before using the desktop client, ensure MyAppx Server is already running and rea
 
 ## Installation Paths
 
-- **Application**: `C:\Users\ken\AppData\Local\Programs\myedi-desktop`
-- **Logs**: `C:\Users\ken\AppData\Roaming\MyEDIDesktop\logs`
+- **Application**: `C:\Users\ken\AppData\Local\Programs\myappx-desktop`
+- **Logs**: `C:\Users\ken\AppData\Roaming\MyAppxDesktop\logs`
 
 ## ToDo
 

@@ -25,7 +25,7 @@ jest.mock('registry-js', () => {
                         {name: 'server-lm-2', data: 'http://server-lm-2.com'},
                     ];
                 }
-                if (key.includes('SOFTWARE\\Policies\\MyEDIDesktop')) {
+                if (key.includes('SOFTWARE\\Policies\\MyAppxDesktop')) {
                     return [
                         {name: 'EnableServerManagement', data: 1},
                         {name: 'EnableAutoUpdater', data: 0},
@@ -40,7 +40,7 @@ jest.mock('registry-js', () => {
                         {name: 'server-cu-2', data: 'http://server-cu-2.com'},
                     ];
                 }
-                if (key.includes('SOFTWARE\\Policies\\MyEDIDesktop')) {
+                if (key.includes('SOFTWARE\\Policies\\MyAppxDesktop')) {
                     return [
                         {name: 'EnableServerManagement', data: 0},
                         {name: 'EnableAutoUpdater', data: 1},
@@ -102,7 +102,7 @@ describe('common/config/policyConfigLoader', () => {
 
             it('handles undefined from one hive', () => {
                 enumerateValues.mockImplementation((hive, key) => {
-                    if (key.includes('MyEDIDesktop') && !key.includes('DefaultServerList')) {
+                    if (key.includes('MyAppxDesktop') && !key.includes('DefaultServerList')) {
                         return hive === 'HKEY_LOCAL_MACHINE' ? [{name: 'EnableServerManagement', data: 1}] : [];
                     }
                     return [];
@@ -113,10 +113,10 @@ describe('common/config/policyConfigLoader', () => {
 
             it('handles registry error in one hive', () => {
                 enumerateValues.mockImplementation((hive, key) => {
-                    if (key.includes('MyEDIDesktop') && hive === 'HKEY_CURRENT_USER') {
+                    if (key.includes('MyAppxDesktop') && hive === 'HKEY_CURRENT_USER') {
                         throw new Error('Registry access error');
                     }
-                    if (key.includes('MyEDIDesktop') && !key.includes('DefaultServerList')) {
+                    if (key.includes('MyAppxDesktop') && !key.includes('DefaultServerList')) {
                         return [{name: 'EnableServerManagement', data: 1}];
                     }
                     if (key.endsWith('DefaultServerList')) {
