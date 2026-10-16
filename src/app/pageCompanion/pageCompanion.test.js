@@ -1,15 +1,67 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {applyCdpPort} from 'app/pageCompanion/cdpPort';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
+import {mcpLaunch, resolveMcpCli} from 'app/pageCompanion/mcpLaunch';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
 import {ipcValidate, pageActSchema} from 'common/Validator';
 
 describe('page companion', () => {
-    it('does not open a debugging port when MYAPPX_CDP_PORT is unset', () => {
+    it('does not open a debugging port when no port is passed', () => {
         const appendSwitch = jest.fn();
         expect(applyCdpPort(appendSwitch, undefined)).toBe(false);
         expect(appendSwitch).not.toHaveBeenCalled();
+    });
+
+    it('uses 9333 when no port is configured', async () => {
+        await expect(chooseCdpPort({}, false, async () => true)).resolves.toBe('9333');
+    });
+
+    it('skips a busy default port', async () => {
+        const probe = jest.fn(async (port) => port === 9334);
+        await expect(chooseCdpPort({}, false, probe)).resolves.toBe('9334');
+        expect(probe).toHaveBeenCalledWith(9333);
+    });
+
+    it('does not open a port in tests unless one is set', async () => {
+        const probe = jest.fn(async () => true);
+        await expect(chooseCdpPort({}, true, probe)).resolves.toBeUndefined();
+        expect(probe).not.toHaveBeenCalled();
+    });
+
+    it('keeps an explicit port', async () => {
+        const probe = jest.fn(async () => false);
+        await expect(chooseCdpPort({MYAPPX_CDP_PORT: '9444'}, true, probe)).resolves.toBe('9444');
+        expect(probe).not.toHaveBeenCalled();
+    });
+
+    it('stays closed when the port is turned off', async () => {
+        await expect(chooseCdpPort({MYAPPX_CDP_PORT: 'off'}, false, async () => true)).resolves.toBeUndefined();
+    });
+
+    it('ignores a port that is not a number', async () => {
+        await expect(chooseCdpPort({MYAPPX_CDP_PORT: 'abc'}, false, async () => true)).resolves.toBeUndefined();
+    });
+
+    it('launches the bundled mcp with the desktop executable', () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'page-companion-'));
+        const pkgDir = path.join(root, 'node_modules', '@playwright', 'mcp');
+        fs.mkdirSync(pkgDir, {recursive: true});
+        fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({bin: {'playwright-mcp': 'cli.js'}}));
+        fs.writeFileSync(path.join(pkgDir, 'cli.js'), '');
+        const cli = resolveMcpCli([root]);
+        expect(cli).toBe(path.join(pkgDir, 'cli.js'));
+        const launch = mcpLaunch(cli, '9333', path.join(root, 'MyAppx.exe'), {PATH: 'kept'});
+        expect(launch.command).toBe(path.join(root, 'MyAppx.exe'));
+        expect(launch.args).toEqual([cli, '--cdp-endpoint', 'http://127.0.0.1:9333']);
+        expect(launch.cwd).toBe(root);
+        expect(launch.env.ELECTRON_RUN_AS_NODE).toBe('1');
+        expect(launch.env.PATH).toBe('kept');
+        fs.rmSync(root, {recursive: true, force: true});
     });
 
     it('opens the debugging port only on 127.0.0.1', () => {

@@ -13,7 +13,7 @@ import Joi from 'joi';
 import MainWindow from 'app/mainWindow/mainWindow';
 import MenuManager from 'app/menus';
 import NavigationManager from 'app/navigationManager';
-import {applyCdpPort} from 'app/pageCompanion/cdpPort';
+import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
 import pageCompanion from 'app/pageCompanion/pageCompanion';
 import {setupBadge} from 'app/system/badge';
 import Tray from 'app/system/tray/tray';
@@ -128,7 +128,7 @@ export async function initialize() {
     initializeArgs();
     await initializeConfig();
     initializeAppEventListeners();
-    initializeBeforeAppReady();
+    await initializeBeforeAppReady();
 
     // https://stackoverflow.com/questions/57676652/how-to-import-a-self-signed-certificate-in-electron-application
 
@@ -222,7 +222,7 @@ function initializeAppEventListeners() {
     app.on('will-finish-launching', handleAppWillFinishLaunching);
 }
 
-function initializeBeforeAppReady() {
+async function initializeBeforeAppReady() {
     if (!Config.data) {
         log.error('No config loaded');
         return;
@@ -234,7 +234,15 @@ function initializeBeforeAppReady() {
     // Note: This is acceptable for internal-only applications that don't access the internet
     app.commandLine.appendSwitch('ignore-certificate-errors');
     app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
-    applyCdpPort((key, value) => app.commandLine.appendSwitch(key, value), process.env.MYAPPX_CDP_PORT);
+    const requestedPort = (process.env.MYAPPX_CDP_PORT ?? '').trim();
+    const cdpPort = await chooseCdpPort(process.env, process.env.NODE_ENV === 'test');
+    if (cdpPort) {
+        process.env.MYAPPX_CDP_PORT = cdpPort;
+        applyCdpPort((key, value) => app.commandLine.appendSwitch(key, value), cdpPort);
+        log.info(`[App.Initialize] Page companion CDP 127.0.0.1:${cdpPort}`);
+    } else if (!requestedPort && process.env.NODE_ENV !== 'test') {
+        log.warn('[App.Initialize] Page companion CDP port was not opened');
+    }
     log.info('[App.Initialize] Certificate error handling configured for intranet environment');
 
     if (process.platform === 'win32') {
@@ -333,6 +341,8 @@ function initializeInterCommunicationEventListeners() {
 }
 
 async function initializeAfterAppReady() {
+    pageCompanion.warm();
+
     setTestField('__e2eTestRefs', {
         MainWindow,
         ServerManager,

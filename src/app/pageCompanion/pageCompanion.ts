@@ -7,6 +7,7 @@ import TabManager from 'app/tabs/tabManager';
 import {Logger} from 'common/log';
 
 import {readCdpPort} from './cdpPort';
+import {companionRoots, mcpLaunch, resolveMcpCli} from './mcpLaunch';
 import {pickTabIndex, tabIsCurrent} from './tabPick';
 
 const log = new Logger('PageCompanion');
@@ -36,6 +37,20 @@ export class PageCompanion {
     private lastUrl = '';
 
     snapshot = (): Promise<PageReport> => this.run(() => this.snapshotOnce());
+
+    warm = (): void => {
+        if (!readCdpPort()) {
+            return;
+        }
+        this.run(async () => {
+            const started = await this.ensureStarted();
+            if (!started) {
+                log.warn('Playwright MCP is not ready');
+            }
+        }).catch(() => {
+            log.warn('Playwright MCP is not ready');
+        });
+    };
 
     act = (action: {op: string; ref: string; value?: string}): Promise<PageReport> => this.run(async () => {
         log.info(`page.act ${action.op}`);
@@ -155,27 +170,42 @@ export class PageCompanion {
         }
         this.child = undefined;
         this.ready = false;
-        const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+        const cli = resolveMcpCli(companionRoots(process.resourcesPath, __dirname));
+        if (!cli) {
+            log.warn('Playwright MCP is not bundled');
+            return false;
+        }
+        const launch = mcpLaunch(cli, port, process.execPath, process.env);
         let spawned: ChildProcessWithoutNullStreams;
         try {
-            spawned = spawn(command, [
-                '--yes',
-                '@playwright/mcp',
-                '--cdp-endpoint',
-                `http://127.0.0.1:${port}`,
-            ], {
-                shell: process.platform === 'win32',
+            spawned = spawn(launch.command, launch.args, {
+                cwd: launch.cwd,
+                env: launch.env,
                 windowsHide: true,
                 stdio: ['pipe', 'pipe', 'pipe'] as const,
             });
             this.child = spawned;
-        } catch {
-            log.warn('Playwright MCP did not start');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'error';
+            log.warn(`Playwright MCP did not start: ${message}`);
             return false;
         }
+        let starting = true;
+        const failed = new Promise<never>((_, reject) => {
+            spawned.once('error', (error: Error) => {
+                if (!starting) {
+                    log.warn(`Playwright MCP stopped: ${error.message}`);
+                    return;
+                }
+                reject(error);
+            });
+        });
         spawned.stdout.on('data', (chunk: Buffer) => this.onData(chunk));
-        spawned.stderr.on('data', () => {
-            log.warn('playwright-mcp stderr');
+        spawned.stderr.on('data', (chunk: Buffer) => {
+            const line = chunk.toString('utf8').trim().slice(0, 400);
+            if (line) {
+                log.warn(`playwright-mcp: ${line}`);
+            }
         });
         spawned.on('exit', () => {
             if (this.child === spawned) {
@@ -184,11 +214,15 @@ export class PageCompanion {
             }
         });
         try {
-            await this.request('initialize', {
-                protocolVersion: '2024-11-05',
-                capabilities: {},
-                clientInfo: {name: 'myappx-page-companion', version: '1.0.0'},
-            });
+            await Promise.race([
+                this.request('initialize', {
+                    protocolVersion: '2024-11-05',
+                    capabilities: {},
+                    clientInfo: {name: 'myappx-page-companion', version: '1.0.0'},
+                }),
+                failed,
+            ]);
+            starting = false;
             this.notify('notifications/initialized', {});
             this.ready = true;
             return true;

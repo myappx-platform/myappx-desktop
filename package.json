@@ -16,7 +16,7 @@
     "url": "git://myappx-desktop.git"
   },
   "scripts": {
-    "postinstall": "patch-package && electron-builder install-app-deps",
+    "postinstall": "patch-package && electron-builder install-app-deps && node scripts/setup-page-companion.js",
     "clean": "rimraf -rf release/ node_modules/ src/node_modules/ dist/ ",
     "clean-install": "npm run clean && npm install",
     "clean-dist": "rimraf -rf dist/",

@@ -1,0 +1,8 @@
+{
+  "name": "myappx-page-companion",
+  "private": true,
+  "description": "Playwright MCP bundled with MyAppx Desktop. It attaches to the desktop over CDP and does not download a browser.",
+  "dependencies": {
+    "@playwright/mcp": "0.0.83"
+  }
+}

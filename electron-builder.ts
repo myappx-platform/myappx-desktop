@@ -63,6 +63,16 @@ const config = {
             filter: '**/*',
         },
     ],
+    extraResources: [
+        {
+            from: 'resources/page-companion/package.json',
+            to: 'page-companion/package.json',
+        },
+        {
+            from: 'resources/page-companion/node_modules',
+            to: 'page-companion/node_modules',
+        },
+    ],
     protocols: [
         {
             name: 'MyAppx',
