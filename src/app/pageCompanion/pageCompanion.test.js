@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 
 import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
-import {mcpLaunch, resolveMcpCli} from 'app/pageCompanion/mcpLaunch';
+import {mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
 import {ipcValidate, pageActSchema} from 'common/Validator';
 
@@ -47,19 +47,24 @@ describe('page companion', () => {
         await expect(chooseCdpPort({MYAPPX_CDP_PORT: 'abc'}, false, async () => true)).resolves.toBeUndefined();
     });
 
-    it('launches the bundled mcp with the desktop executable', () => {
+    it('launches the bundled mcp with the node host', () => {
         const root = fs.mkdtempSync(path.join(os.tmpdir(), 'page-companion-'));
         const pkgDir = path.join(root, 'node_modules', '@playwright', 'mcp');
+        const hostName = process.platform === 'win32' ? 'node.exe' : 'node';
         fs.mkdirSync(pkgDir, {recursive: true});
+        fs.mkdirSync(path.join(root, 'host'), {recursive: true});
         fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({bin: {'playwright-mcp': 'cli.js'}}));
         fs.writeFileSync(path.join(pkgDir, 'cli.js'), '');
+        fs.writeFileSync(path.join(root, 'host', hostName), '');
         const cli = resolveMcpCli([root]);
+        const nodeHost = resolveNodeHost([root]);
         expect(cli).toBe(path.join(pkgDir, 'cli.js'));
-        const launch = mcpLaunch(cli, '9333', path.join(root, 'MyAppx.exe'), {PATH: 'kept'});
-        expect(launch.command).toBe(path.join(root, 'MyAppx.exe'));
+        expect(nodeHost).toBe(path.join(root, 'host', hostName));
+        const launch = mcpLaunch(cli, '9333', nodeHost, {PATH: 'kept', ELECTRON_RUN_AS_NODE: '1'});
+        expect(launch.command).toBe(nodeHost);
         expect(launch.args).toEqual([cli, '--cdp-endpoint', 'http://127.0.0.1:9333']);
         expect(launch.cwd).toBe(root);
-        expect(launch.env.ELECTRON_RUN_AS_NODE).toBe('1');
+        expect(launch.env.ELECTRON_RUN_AS_NODE).toBeUndefined();
         expect(launch.env.PATH).toBe('kept');
         fs.rmSync(root, {recursive: true, force: true});
     });

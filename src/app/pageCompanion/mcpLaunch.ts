@@ -20,6 +20,17 @@ export function companionRoots(resourcesPath: string | undefined, moduleDir: str
     return roots;
 }
 
+export function resolveNodeHost(roots: string[]): string | undefined {
+    const name = process.platform === 'win32' ? 'node.exe' : 'node';
+    for (const root of roots) {
+        const host = path.join(root, 'host', name);
+        if (fs.existsSync(host)) {
+            return host;
+        }
+    }
+    return undefined;
+}
+
 export function resolveMcpCli(roots: string[]): string | undefined {
     for (const root of roots) {
         const pkgPath = path.join(root, 'node_modules', '@playwright', 'mcp', 'package.json');
@@ -44,16 +55,17 @@ export function resolveMcpCli(roots: string[]): string | undefined {
     return undefined;
 }
 
-export function mcpLaunch(cli: string, port: string, execPath: string, env: NodeJS.ProcessEnv): McpLaunch {
+export function mcpLaunch(cli: string, port: string, nodeHost: string, env: NodeJS.ProcessEnv): McpLaunch {
+    const childEnv: NodeJS.ProcessEnv = {
+        ...env,
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1',
+    };
+    delete childEnv.ELECTRON_RUN_AS_NODE;
     return {
-        command: execPath,
+        command: nodeHost,
         args: [cli, '--cdp-endpoint', `http://127.0.0.1:${port}`],
         cwd: path.resolve(cli, '../../../..'),
-        env: {
-            ...env,
-            ELECTRON_RUN_AS_NODE: '1',
-            PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1',
-        },
+        env: childEnv,
     };
 }
 

@@ -7,7 +7,7 @@ import TabManager from 'app/tabs/tabManager';
 import {Logger} from 'common/log';
 
 import {readCdpPort} from './cdpPort';
-import {companionRoots, mcpLaunch, resolveMcpCli} from './mcpLaunch';
+import {companionRoots, mcpLaunch, resolveMcpCli, resolveNodeHost} from './mcpLaunch';
 import {pickTabIndex, tabIsCurrent} from './tabPick';
 
 const log = new Logger('PageCompanion');
@@ -170,12 +170,14 @@ export class PageCompanion {
         }
         this.child = undefined;
         this.ready = false;
-        const cli = resolveMcpCli(companionRoots(process.resourcesPath, __dirname));
-        if (!cli) {
+        const roots = companionRoots(process.resourcesPath, __dirname);
+        const cli = resolveMcpCli(roots);
+        const nodeHost = resolveNodeHost(roots);
+        if (!cli || !nodeHost) {
             log.warn('Playwright MCP is not bundled');
             return false;
         }
-        const launch = mcpLaunch(cli, port, process.execPath, process.env);
+        const launch = mcpLaunch(cli, port, nodeHost, process.env);
         let spawned: ChildProcessWithoutNullStreams;
         try {
             spawned = spawn(launch.command, launch.args, {
@@ -275,33 +277,22 @@ export class PageCompanion {
         if (!this.child || !this.child.stdin.writable) {
             throw new Error('mcp down');
         }
-        const json = JSON.stringify(message);
-        const body = Buffer.from(json, 'utf8');
-        this.child.stdin.write(`Content-Length: ${body.length}\r\n\r\n`);
-        this.child.stdin.write(body);
+        // Current @playwright/mcp uses newline-delimited JSON, not Content-Length frames.
+        this.child.stdin.write(`${JSON.stringify(message)}\n`);
     }
 
     private onData(chunk: Buffer): void {
         this.buffer = Buffer.concat([this.buffer, chunk]);
-        while (this.buffer.length > 0) {
-            const headerEnd = this.buffer.indexOf('\r\n\r\n');
-            if (headerEnd < 0) {
+        while (true) {
+            const newline = this.buffer.indexOf('\n');
+            if (newline < 0) {
                 return;
             }
-            const header = this.buffer.slice(0, headerEnd).toString('utf8');
-            const match = header.match(/Content-Length:\s*(\d+)/i);
-            if (!match) {
-                this.buffer = Buffer.alloc(0);
-                return;
+            const line = this.buffer.slice(0, newline).toString('utf8').replace(/\r$/, '');
+            this.buffer = this.buffer.slice(newline + 1);
+            if (line) {
+                this.onMessage(line);
             }
-            const length = Number(match[1]);
-            const start = headerEnd + 4;
-            if (this.buffer.length < start + length) {
-                return;
-            }
-            const body = this.buffer.slice(start, start + length).toString('utf8');
-            this.buffer = this.buffer.slice(start + length);
-            this.onMessage(body);
         }
     }
 

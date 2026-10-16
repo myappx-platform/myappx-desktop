@@ -72,6 +72,10 @@ const config = {
             from: 'resources/page-companion/node_modules',
             to: 'page-companion/node_modules',
         },
+        {
+            from: 'resources/page-companion/host/node.exe',
+            to: 'page-companion/host/node.exe',
+        },
     ],
     protocols: [
         {

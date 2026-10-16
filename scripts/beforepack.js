@@ -5,9 +5,13 @@ const fs = require('fs');
 const path = require('path');
 
 exports.default = async function beforePack(context) {
-    const cli = path.join(__dirname, '../resources/page-companion/node_modules/@playwright/mcp/cli.js');
+    const root = path.join(__dirname, '../resources/page-companion');
+    const cli = path.join(root, 'node_modules/@playwright/mcp/cli.js');
     if (!fs.existsSync(cli)) {
         throw new Error('Page companion is missing. Run: node scripts/setup-page-companion.js');
+    }
+    if (context.electronPlatformName === 'win32' && !fs.existsSync(path.join(root, 'host/node.exe'))) {
+        throw new Error('Page companion node host is missing. Run: node scripts/setup-page-companion.js');
     }
 
     // The debian packager (fpm) complains when the directory to output the package to doesn't exist
