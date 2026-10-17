@@ -8,7 +8,7 @@ import {Logger} from 'common/log';
 
 import {readCdpPort} from './cdpPort';
 import {companionRoots, mcpLaunch, resolveMcpCli, resolveNodeHost} from './mcpLaunch';
-import {focusDocumentText} from './snapshotFocus';
+import {extractWindowHint, focusDocumentText} from './snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from './tabPick';
 
 const log = new Logger('PageCompanion');
@@ -135,8 +135,10 @@ export class PageCompanion {
             return {ok: false, kind: 'snapshot', error: 'mcp-down'};
         }
         this.lastUrl = page.url;
+        const windowHint = extractWindowHint(shot.text);
         const text = focusDocumentText(shot.text, 12000);
-        return {ok: true, kind: 'snapshot', text, url: page.url, title: page.title};
+        const title = windowHint || page.title;
+        return {ok: true, kind: 'snapshot', text, url: page.url, title};
     }
 
     private activeWebui(): {url: string; title: string} | undefined {

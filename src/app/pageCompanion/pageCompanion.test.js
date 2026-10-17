@@ -7,7 +7,7 @@ import path from 'path';
 
 import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
 import {mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
-import {focusDocumentText} from 'app/pageCompanion/snapshotFocus';
+import {extractWindowHint, focusDocumentText} from 'app/pageCompanion/snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
 import {ipcValidate, pageActSchema} from 'common/Validator';
 
@@ -123,7 +123,93 @@ describe('page companion', () => {
         const focused = focusDocumentText(shell, 6000);
         expect(focused).toContain('Document No');
         expect(focused).toContain('Copilot test');
+        expect(focused).toContain('### Window');
+        expect(focused).toContain('Sales Order');
         expect(focused).not.toContain('Activities');
         expect(focused).not.toContain('Favorites');
+    });
+
+    it('extracts the AD window label before focus drops chrome', () => {
+        const shell = [
+            '### Snapshot',
+            '- tab "Sales Order" [selected] [ref=e10]',
+            '- generic [ref=e3]: Favorites',
+            'x'.repeat(5000),
+            '- columnheader "Document No" [ref=e441]',
+        ].join('\n');
+        expect(extractWindowHint(shell)).toBe('Sales Order');
+        expect(focusDocumentText(shell, 2000)).toContain('Sales Order');
+    });
+
+    it('reads the grid row named on the window tab', () => {
+        const shell = [
+            '### Snapshot',
+            '- listitem "Sales Order: 80001" [ref=e2]:',
+            '  - text: "Sales Order: 80001"',
+            '- grid [ref=e10]:',
+            '  - rowgroup [ref=e11]:',
+            '    - columnheader [ref=e12]:',
+            '      - checkbox [ref=e13]',
+            '    - columnheader [ref=e14]',
+            '    - columnheader "Organization" [ref=e15]',
+            '    - columnheader "Document No" [ref=e16]',
+            '    - columnheader "Order Reference" [ref=e17]',
+            '    - columnheader "Business Partner" [ref=e18]',
+            '  - rowgroup [ref=e19]:',
+            '    - checkbox [ref=e20] [cursor=pointer]',
+            '    - generic [ref=e21] [cursor=pointer]: HQ',
+            '    - generic [ref=e22] [cursor=pointer]: "80002"',
+            '    - generic [ref=e23] [cursor=pointer]: Phone Order',
+            '    - generic [ref=e24] [cursor=pointer]: C&W Construction',
+            '    - checkbox [ref=e25] [cursor=pointer]',
+            '    - generic [ref=e26] [cursor=pointer]: ',
+            '    - generic [ref=e27] [cursor=pointer]: HQ',
+            '    - generic [ref=e28] [cursor=pointer]: "80001"',
+            '    - generic [ref=e29] [cursor=pointer]: Standard',
+        ].join('\n');
+        const focused = focusDocumentText(shell, 4000);
+        expect(focused).toContain('Sales Order: 80001');
+        expect(focused).toContain('Document No: 80001');
+        expect(focused).toContain('Organization: HQ');
+        expect(focused).toContain('Standard');
+        expect(focused).not.toContain('Phone Order');
+        expect(focused).not.toContain('80002');
+    });
+
+    it('asks for a selected row when the grid tab has no document number', () => {
+        const shell = [
+            '### Snapshot',
+            '- listitem "Sales Order" [ref=e2]',
+            '- grid [ref=e10]:',
+            '  - columnheader "Document No" [ref=e16]',
+            '  - columnheader "Organization" [ref=e15]',
+            '  - checkbox [ref=e20] [cursor=pointer]',
+            '  - generic [ref=e22]: "80002"',
+            '  - checkbox [ref=e25] [cursor=pointer]',
+            '  - generic [ref=e28]: "80001"',
+        ].join('\n');
+        const focused = focusDocumentText(shell, 2000);
+        expect(focused).toContain('没有唯一选中行');
+        expect(focused).not.toContain('80002');
+    });
+
+    it('keeps the ZK window tab when a later field sits under a long description', () => {
+        const shell = [
+            '### Snapshot',
+            '- listitem "Home" [ref=e1]',
+            '- listitem "*Sales Order: 80002" [ref=e2]:',
+            '  - text: "*Sales Order: 80002"',
+            '- text: ' + ' '.repeat(8),
+            '- generic [ref=e546]: Document No',
+            '- textbox "Document sequence number of the document" [ref=e547]: "80002"',
+            '- textbox "Optional short description of the record" [ref=e552]: ' + 'printed '.repeat(80),
+            '- generic [ref=e554]: Target Document Type*',
+            '- columnheader "Document No" [ref=e900]',
+        ].join('\n');
+        expect(extractWindowHint(shell)).toBe('*Sales Order: 80002');
+        const focused = focusDocumentText(shell, 4000);
+        expect(focused).toContain('*Sales Order: 80002');
+        expect(focused).toContain('Document No');
+        expect(focused).toContain('80002');
     });
 });
