@@ -8,6 +8,7 @@ import {Logger} from 'common/log';
 
 import {readCdpPort} from './cdpPort';
 import {companionRoots, mcpLaunch, resolveMcpCli, resolveNodeHost} from './mcpLaunch';
+import {focusDocumentText} from './snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from './tabPick';
 
 const log = new Logger('PageCompanion');
@@ -134,7 +135,7 @@ export class PageCompanion {
             return {ok: false, kind: 'snapshot', error: 'mcp-down'};
         }
         this.lastUrl = page.url;
-        const text = shot.text.length > 12000 ? shot.text.slice(0, 12000) : shot.text;
+        const text = focusDocumentText(shot.text, 12000);
         return {ok: true, kind: 'snapshot', text, url: page.url, title: page.title};
     }
 
@@ -277,22 +278,21 @@ export class PageCompanion {
         if (!this.child || !this.child.stdin.writable) {
             throw new Error('mcp down');
         }
+
         // Current @playwright/mcp uses newline-delimited JSON, not Content-Length frames.
         this.child.stdin.write(`${JSON.stringify(message)}\n`);
     }
 
     private onData(chunk: Buffer): void {
         this.buffer = Buffer.concat([this.buffer, chunk]);
-        while (true) {
-            const newline = this.buffer.indexOf('\n');
-            if (newline < 0) {
-                return;
-            }
+        let newline = this.buffer.indexOf('\n');
+        while (newline >= 0) {
             const line = this.buffer.slice(0, newline).toString('utf8').replace(/\r$/, '');
             this.buffer = this.buffer.slice(newline + 1);
             if (line) {
                 this.onMessage(line);
             }
+            newline = this.buffer.indexOf('\n');
         }
     }
 

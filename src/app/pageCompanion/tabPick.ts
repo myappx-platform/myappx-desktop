@@ -14,20 +14,46 @@ function stripUrl(raw: string): string {
     }
 }
 
+/** Same webui shell regardless of /webui, /webui/, or /webui/index.zul. */
+function webuiKey(raw: string): string | undefined {
+    try {
+        const url = new URL(raw);
+        if (!url.pathname.toLowerCase().includes('/webui')) {
+            return undefined;
+        }
+        return `${url.origin.toLowerCase()}/webui`;
+    } catch {
+        return raw.toLowerCase().includes('/webui') ? raw.toLowerCase() : undefined;
+    }
+}
+
 /** Index of the single tab whose URL matches the active WebContentsView. */
 export function pickTabIndex(listText: string, targetHref: string): number | null {
     const target = stripUrl(targetHref);
-    const hits: number[] = [];
+    const targetWebui = webuiKey(targetHref);
+    const exact: number[] = [];
+    const soft: number[] = [];
     for (const line of listText.split(/\r?\n/)) {
         const match = line.match(/-\s+(\d+):.*?(https?:\/\/[^\s)]+)/);
         if (!match) {
             continue;
         }
+        const index = Number(match[1]);
         if (stripUrl(match[2]) === target) {
-            hits.push(Number(match[1]));
+            exact.push(index);
+            continue;
+        }
+        if (targetWebui && webuiKey(match[2]) === targetWebui) {
+            soft.push(index);
         }
     }
-    return hits.length === 1 ? hits[0] : null;
+    if (exact.length === 1) {
+        return exact[0];
+    }
+    if (exact.length === 0 && soft.length === 1) {
+        return soft[0];
+    }
+    return null;
 }
 
 export function tabIsCurrent(listText: string, index: number): boolean {

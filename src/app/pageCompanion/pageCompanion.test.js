@@ -7,6 +7,7 @@ import path from 'path';
 
 import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
 import {mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
+import {focusDocumentText} from 'app/pageCompanion/snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
 import {ipcValidate, pageActSchema} from 'common/Validator';
 
@@ -93,5 +94,36 @@ describe('page companion', () => {
         expect(pickTabIndex(list, 'https://localhost:18443/webui')).toBe(1);
         expect(tabIsCurrent(list, 1)).toBe(false);
         expect(pickTabIndex(list, 'https://localhost:18443/missing')).toBeNull();
+    });
+
+    it('treats /webui and /webui/index.zul as the same tab', () => {
+        const list = [
+            '- 0: (current) [Downloads](myappx-desktop://renderer/downloadsDropdown.html)',
+            '- 5: [MyAppx](https://localhost:18443/webui/index.zul)',
+        ].join('\n');
+        expect(pickTabIndex(list, 'https://localhost:18443/webui/')).toBe(5);
+        expect(pickTabIndex(list, 'https://localhost:18443/webui')).toBe(5);
+    });
+
+    it('keeps the open document when shell chrome fills the start of the snapshot', () => {
+        const shell = [
+            '### Open tabs',
+            '- 0: [Downloads](myappx-desktop://renderer/downloadsDropdown.html)',
+            '### Snapshot',
+            '- generic "Activities" [ref=e1]: "14"',
+            '- generic [ref=e2]: SuperUser',
+            '- generic [ref=e3]: Favorites',
+            '- text: Sales Order',
+            '- button "New" [ref=e4]',
+            'x'.repeat(7000),
+            '- columnheader "Document No" [ref=e441]',
+            '- gridcell "80000" [ref=e442]',
+            '- textbox "Description" [ref=e450]: Copilot test',
+        ].join('\n');
+        const focused = focusDocumentText(shell, 6000);
+        expect(focused).toContain('Document No');
+        expect(focused).toContain('Copilot test');
+        expect(focused).not.toContain('Activities');
+        expect(focused).not.toContain('Favorites');
     });
 });
