@@ -37,6 +37,7 @@ import {
     TOGGLE_SECURE_INPUT,
     GET_APP_INFO,
     PAGE_ACT,
+    PAGE_ASSIST,
     PAGE_SNAPSHOT,
     SHOW_SETTINGS_WINDOW,
     DEVELOPER_MODE_UPDATED,
@@ -51,7 +52,7 @@ import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
 import {setTestField} from 'common/utils/util';
-import {ipcValidate, pageActSchema} from 'common/Validator';
+import {ipcValidate, pageActSchema, pageAssistSchema} from 'common/Validator';
 import ViewManager from 'common/views/viewManager';
 import AppVersionManager from 'main/AppVersionManager';
 import AutoLauncher from 'main/AutoLauncher';
@@ -307,8 +308,12 @@ function initializeInterCommunicationEventListeners() {
     ipcMain.handle(GET_APP_INFO, handleAppVersion);
     ipcMain.handle(PAGE_SNAPSHOT, () => pageCompanion.snapshot());
     ipcMain.handle(PAGE_ACT, ipcValidate(
-        (_event: IpcMainInvokeEvent, action: {op: string; ref: string; value?: string}) => pageCompanion.act(action),
+        (_event: IpcMainInvokeEvent, action: {op: string; ref?: string; value?: string; instanceName?: string; label?: string}) => pageCompanion.act(action),
         [pageActSchema],
+    ));
+    ipcMain.handle(PAGE_ASSIST, ipcValidate(
+        (_event: IpcMainInvokeEvent, action: {op: string; instanceName?: string; label?: string}) => pageCompanion.assist(action),
+        [pageAssistSchema],
     ));
 
     if (process.platform !== 'darwin') {

@@ -409,7 +409,7 @@ export const joinCallOptsSchema = Joi.object({
     startingCall: Joi.boolean(),
 });
 
-export const pageActSchema = Joi.object({
+const pageRefActSchema = Joi.object({
     op: Joi.string().valid('fill_form', 'click', 'type', 'press', 'select_option').required(),
     ref: Joi.string().pattern(/^e\d+$/).required(),
     value: Joi.when('op', {
@@ -417,7 +417,29 @@ export const pageActSchema = Joi.object({
         then: Joi.string().max(4000).required(),
         otherwise: Joi.string().max(4000).allow('').optional(),
     }),
+    label: Joi.string().max(80).allow('').optional(),
 });
+
+const pageSetTextSchema = Joi.object({
+    op: Joi.string().valid('set_text').required(),
+    value: Joi.string().max(4000).required(),
+    instanceName: Joi.string().trim().min(1).max(120),
+    label: Joi.string().trim().min(1).max(80),
+    ref: Joi.any().forbidden(),
+}).or('instanceName', 'label');
+
+export const pageActSchema = Joi.alternatives().try(pageSetTextSchema, pageRefActSchema);
+
+export const pageAssistSchema = Joi.alternatives().try(
+    Joi.object({
+        op: Joi.string().valid('highlight').required(),
+        instanceName: Joi.string().trim().min(1).max(120),
+        label: Joi.string().trim().min(1).max(80),
+    }).or('instanceName', 'label'),
+    Joi.object({
+        op: Joi.string().valid('clear').required(),
+    }),
+);
 
 export const desktopSourcesOptsSchema = Joi.object({
     types: Joi.array().items(Joi.string().valid('screen', 'window')).required(),

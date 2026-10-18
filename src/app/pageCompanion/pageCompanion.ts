@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {spawn, type ChildProcessWithoutNullStreams} from 'child_process';
+import type {WebContents} from 'electron';
 
 import TabManager from 'app/tabs/tabManager';
 import {Logger} from 'common/log';
@@ -10,16 +11,26 @@ import {readCdpPort} from './cdpPort';
 import {companionRoots, mcpLaunch, resolveMcpCli, resolveNodeHost} from './mcpLaunch';
 import {extractWindowHint, focusDocumentText} from './snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from './tabPick';
+import {parseFieldList, zkInvoke, type ZkField} from './zkFields';
 
 const log = new Logger('PageCompanion');
 
 type PageReport = {
     ok: boolean;
-    kind?: 'snapshot' | 'act';
+    kind?: 'snapshot' | 'act' | 'assist';
     text?: string;
     url?: string;
     title?: string;
     error?: string;
+    fields?: ZkField[];
+};
+
+type PageTarget = {
+    op: string;
+    ref?: string;
+    value?: string;
+    instanceName?: string;
+    label?: string;
 };
 
 type Pending = {
@@ -53,7 +64,7 @@ export class PageCompanion {
         });
     };
 
-    act = (action: {op: string; ref: string; value?: string}): Promise<PageReport> => this.run(async () => {
+    act = (action: PageTarget): Promise<PageReport> => this.run(async () => {
         log.info(`page.act ${action.op}`);
         const page = this.activeWebui();
         if (!page) {
@@ -62,12 +73,26 @@ export class PageCompanion {
         if (!this.lastUrl || page.url !== this.lastUrl) {
             return {ok: false, kind: 'act', error: 'page-changed'};
         }
+        await this.highlightTarget(page.webContents, action);
+        if (action.op === 'set_text') {
+            const wrote = await this.zkCall(page.webContents, 'setText', {
+                instanceName: action.instanceName ?? '',
+                label: action.label ?? '',
+                value: action.value ?? '',
+            }) as {ok?: boolean; error?: string} | null;
+            if (!wrote || wrote.ok === false) {
+                return {ok: false, kind: 'act', error: typeof wrote?.error === 'string' ? wrote.error : 'act-failed'};
+            }
+            await this.stabilizeAfterAct();
+            return {ok: true, kind: 'act'};
+        }
         const started = await this.ensureStarted();
         if (!started) {
             return {ok: false, kind: 'act', error: 'mcp-down'};
         }
+        const ref = action.ref ?? '';
         let toolName = 'browser_click';
-        let args: Record<string, unknown> = {element: action.ref, ref: action.ref};
+        let args: Record<string, unknown> = {element: ref, ref};
         switch (action.op) {
         case 'fill_form':
             toolName = 'browser_fill_form';
@@ -75,14 +100,14 @@ export class PageCompanion {
                 fields: [{
                     name: 'field',
                     type: 'textbox',
-                    ref: action.ref,
+                    ref,
                     value: action.value ?? '',
                 }],
             };
             break;
         case 'type':
             toolName = 'browser_type';
-            args = {ref: action.ref, text: action.value ?? ''};
+            args = {ref, text: action.value ?? ''};
             break;
         case 'press':
             toolName = 'browser_press_key';
@@ -90,7 +115,7 @@ export class PageCompanion {
             break;
         case 'select_option':
             toolName = 'browser_select_option';
-            args = {ref: action.ref, values: [action.value ?? '']};
+            args = {ref, values: [action.value ?? '']};
             break;
         default:
             break;
@@ -101,6 +126,26 @@ export class PageCompanion {
         }
         await this.stabilizeAfterAct();
         return {ok: true, kind: 'act'};
+    });
+
+    assist = (action: PageTarget): Promise<PageReport> => this.run(async () => {
+        log.info(`page.assist ${action.op}`);
+        const page = this.activeWebui();
+        if (!page) {
+            return {ok: false, kind: 'assist', error: 'not-webui'};
+        }
+        if (action.op === 'clear') {
+            await this.zkCall(page.webContents, 'clearHighlight');
+            return {ok: true, kind: 'assist'};
+        }
+        const painted = await this.zkCall(page.webContents, 'highlight', {
+            instanceName: action.instanceName ?? '',
+            label: action.label ?? '',
+        });
+        if (!painted) {
+            return {ok: false, kind: 'assist', error: 'act-failed'};
+        }
+        return {ok: true, kind: 'assist'};
     });
 
     stop = (): void => {
@@ -157,6 +202,7 @@ export class PageCompanion {
                 return {ok: false, kind: 'snapshot', error: 'no-tab'};
             }
         }
+        await this.zkCall(page.webContents, 'clearHighlight');
         const shot = await this.callTool('browser_snapshot', {});
         if (!shot.ok) {
             return {ok: false, kind: 'snapshot', error: 'mcp-down'};
@@ -165,10 +211,11 @@ export class PageCompanion {
         const windowHint = extractWindowHint(shot.text);
         const text = focusDocumentText(shot.text, 12000);
         const title = windowHint || page.title;
-        return {ok: true, kind: 'snapshot', text, url: page.url, title};
+        const fields = await this.readFields(page.webContents);
+        return {ok: true, kind: 'snapshot', text, url: page.url, title, fields};
     }
 
-    private activeWebui(): {url: string; title: string} | undefined {
+    private activeWebui(): {url: string; title: string; webContents: WebContents} | undefined {
         const view = TabManager.getCurrentActiveTabView();
         const current = view?.currentURL;
         if (!current) {
@@ -179,12 +226,47 @@ export class PageCompanion {
             return undefined;
         }
         let title = '';
+        let webContents: WebContents;
         try {
-            title = view.getWebContentsView().webContents.getTitle() || '';
+            webContents = view.getWebContentsView().webContents;
+            title = webContents.getTitle() || '';
         } catch {
             log.warn('page title unavailable');
+            return undefined;
         }
-        return {url, title};
+        return {url, title, webContents};
+    }
+
+    private async readFields(webContents: WebContents): Promise<ZkField[]> {
+        const raw = await this.zkCall(webContents, 'read');
+        return parseFieldList(raw);
+    }
+
+    private async highlightTarget(webContents: WebContents, action: PageTarget): Promise<void> {
+        if (!action.instanceName && !action.label) {
+            return;
+        }
+        await this.zkCall(webContents, 'highlight', {
+            instanceName: action.instanceName ?? '',
+            label: action.label ?? '',
+        });
+        await this.pause(250);
+    }
+
+    private async zkCall(webContents: WebContents, fn: 'read' | 'setText' | 'highlight' | 'clearHighlight', arg?: unknown): Promise<unknown> {
+        try {
+            return await webContents.executeJavaScript(zkInvoke(fn, arg), true);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'error';
+            log.warn(`zk script ${fn} failed: ${message}`);
+            return null;
+        }
+    }
+
+    private pause(ms: number): Promise<void> {
+        return new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        });
     }
 
     private async ensureStarted(): Promise<boolean> {

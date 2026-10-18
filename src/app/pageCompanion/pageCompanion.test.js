@@ -9,7 +9,8 @@ import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
 import {mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
 import {extractWindowHint, focusDocumentText} from 'app/pageCompanion/snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
-import {ipcValidate, pageActSchema} from 'common/Validator';
+import {columnOf, zkInvoke} from 'app/pageCompanion/zkFields';
+import {ipcValidate, pageActSchema, pageAssistSchema} from 'common/Validator';
 
 describe('page companion', () => {
     it('does not open a debugging port when no port is passed', () => {
@@ -87,6 +88,27 @@ describe('page companion', () => {
         expect(pageActSchema.validate({op: 'type', ref: 'e3', value: 'hello'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'press', ref: 'e3', value: 'Tab'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'select_option', ref: 'e5', value: 'HQ'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'set_text', instanceName: 'C_Order0Description', value: 'hello'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'set_text', label: 'Description', value: 'hello'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'set_text', instanceName: 'C_Order0Description', value: 'hello', ref: 'e3'}).error).toBeDefined();
+        expect(pageActSchema.validate({op: 'set_text', value: 'hello'}).error).toBeDefined();
+        expect(pageActSchema.validate({op: 'evaluate', ref: 'e1'}).error).toBeDefined();
+        expect(pageActSchema.validate({op: 'script', instanceName: 'Description', value: 'x'}).error).toBeDefined();
+        expect(pageAssistSchema.validate({op: 'highlight', label: 'Description'}).error).toBeUndefined();
+        expect(pageAssistSchema.validate({op: 'clear'}).error).toBeUndefined();
+        expect(pageAssistSchema.validate({op: 'highlight'}).error).toBeDefined();
+        expect(pageAssistSchema.validate({op: 'fill_form', ref: 'e1', value: 'x'}).error).toBeDefined();
+    });
+
+    it('reads the column after the table marker in instanceName', () => {
+        expect(columnOf('C_Order0Description')).toBe('Description');
+        expect(columnOf('Description')).toBe('Description');
+    });
+
+    it('keeps the fixed zk script valid when a value contains quotes', () => {
+        const src = zkInvoke('setText', {instanceName: 'C_Order0Description', value: '"); alert(1)'});
+        expect(() => new Function(`return ${src}`)).not.toThrow();
+        expect(src).not.toContain('browser_evaluate');
     });
 
     it('selects only the tab whose url matches the active view', () => {
