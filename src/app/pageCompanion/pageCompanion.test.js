@@ -84,6 +84,9 @@ describe('page companion', () => {
         expect(handler).not.toHaveBeenCalled();
         expect(pageActSchema.validate({op: 'click', ref: 'e12'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'fill_form', ref: 'e3', value: 'hello'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'type', ref: 'e3', value: 'hello'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'press', ref: 'e3', value: 'Tab'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'select_option', ref: 'e5', value: 'HQ'}).error).toBeUndefined();
     });
 
     it('selects only the tab whose url matches the active view', () => {

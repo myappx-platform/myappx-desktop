@@ -410,10 +410,10 @@ export const joinCallOptsSchema = Joi.object({
 });
 
 export const pageActSchema = Joi.object({
-    op: Joi.string().valid('fill_form', 'click').required(),
+    op: Joi.string().valid('fill_form', 'click', 'type', 'press', 'select_option').required(),
     ref: Joi.string().pattern(/^e\d+$/).required(),
     value: Joi.when('op', {
-        is: 'fill_form',
+        is: Joi.valid('fill_form', 'type', 'select_option', 'press'),
         then: Joi.string().max(4000).required(),
         otherwise: Joi.string().max(4000).allow('').optional(),
     }),

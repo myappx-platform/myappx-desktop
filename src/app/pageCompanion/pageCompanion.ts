@@ -66,19 +66,40 @@ export class PageCompanion {
         if (!started) {
             return {ok: false, kind: 'act', error: 'mcp-down'};
         }
-        const args = action.op === 'fill_form' ? {
-            fields: [{
-                name: 'field',
-                type: 'textbox',
-                ref: action.ref,
-                value: action.value ?? '',
-            }],
-        } : {element: action.ref, ref: action.ref};
-        const name = action.op === 'fill_form' ? 'browser_fill_form' : 'browser_click';
-        const called = await this.callTool(name, args);
+        let toolName = 'browser_click';
+        let args: Record<string, unknown> = {element: action.ref, ref: action.ref};
+        switch (action.op) {
+        case 'fill_form':
+            toolName = 'browser_fill_form';
+            args = {
+                fields: [{
+                    name: 'field',
+                    type: 'textbox',
+                    ref: action.ref,
+                    value: action.value ?? '',
+                }],
+            };
+            break;
+        case 'type':
+            toolName = 'browser_type';
+            args = {ref: action.ref, text: action.value ?? ''};
+            break;
+        case 'press':
+            toolName = 'browser_press_key';
+            args = {key: action.value ?? 'Enter'};
+            break;
+        case 'select_option':
+            toolName = 'browser_select_option';
+            args = {ref: action.ref, values: [action.value ?? '']};
+            break;
+        default:
+            break;
+        }
+        const called = await this.callTool(toolName, args);
         if (!called.ok) {
             return {ok: false, kind: 'act', error: 'act-failed'};
         }
+        await this.stabilizeAfterAct();
         return {ok: true, kind: 'act'};
     });
 
@@ -100,6 +121,12 @@ export class PageCompanion {
         const next = this.tail.then(fn, fn);
         this.tail = next.then(() => undefined, () => undefined);
         return next;
+    }
+
+    private stabilizeAfterAct(): Promise<void> {
+        return new Promise((resolve) => {
+            setTimeout(resolve, 400);
+        });
     }
 
     private async snapshotOnce(): Promise<PageReport> {
