@@ -195,6 +195,31 @@ function clearHighlight() {
   if (old && old.parentNode) old.parentNode.removeChild(old);
   return {ok: true};
 }
+function showTab(spec) {
+  var name = spec && spec.tabName ? String(spec.tabName).trim() : '';
+  if (!name) return {ok: false};
+  var nodes = document.querySelectorAll('.z-tab-text, .z-tab');
+  for (var i = 0; i < nodes.length; i++) {
+    var text = (nodes[i].textContent || '').replace(/\\s+/g, ' ').trim();
+    if (text !== name) continue;
+    var tab = nodes[i].closest ? nodes[i].closest('.z-tab') : nodes[i];
+    var w = widget(tab || nodes[i]);
+    if (w && typeof w.setSelected === 'function') {
+      w.setSelected(true);
+      return {ok: true};
+    }
+    if (tab && typeof tab.click === 'function') {
+      tab.click();
+      return {ok: true};
+    }
+  }
+  return {ok: false};
+}
+function scrollField(spec) {
+  var el = findField(spec || {}) || findButton(spec && spec.label);
+  if (el && el.scrollIntoView) el.scrollIntoView({block: 'center', inline: 'nearest'});
+  return {ok: !!el};
+}
 function highlight(spec) {
   var el = findField(spec || {}) || findButton(spec && spec.label);
   return {ok: true, highlighted: paint(el)};
@@ -225,6 +250,35 @@ function setText(spec) {
   if (!fired) return {ok: false, error: 'not-text'};
   return {ok: true};
 }
+function clickLabel(spec) {
+  var el = findButton(spec && spec.label) || findField(spec || {});
+  if (!el) return {ok: false, error: 'not-found'};
+  var target = el.matches && el.matches('button,a,input') ? el : (el.querySelector ? el.querySelector('button,a,input') : null);
+  var node = target || el;
+  if (typeof node.click === 'function') {
+    node.click();
+    return {ok: true};
+  }
+  return {ok: false, error: 'not-found'};
+}
+function selectLabel(spec) {
+  var el = findField(spec || {});
+  if (!el) return {ok: false, error: 'not-found'};
+  var value = spec && spec.value != null ? String(spec.value) : '';
+  var w = widget(el);
+  if (w && typeof w.setValue === 'function') {
+    try {
+      w.setValue(value);
+      if (typeof w.fire === 'function') w.fire('onChange', {value: value}, {toServer: true});
+      return {ok: true};
+    } catch (ignore) {}
+  }
+  var select = el.matches && el.matches('select') ? el : (el.querySelector ? el.querySelector('select') : null);
+  if (!select) return {ok: false, error: 'not-found'};
+  select.value = value;
+  select.dispatchEvent(new Event('change', {bubbles: true}));
+  return {ok: true};
+}
 `;
 
 export function columnOf(instanceName: string): string {
@@ -232,7 +286,7 @@ export function columnOf(instanceName: string): string {
     return match ? match[2] : (instanceName || '');
 }
 
-export function zkInvoke(fn: 'read' | 'setText' | 'highlight' | 'clearHighlight', arg?: unknown): string {
+export function zkInvoke(fn: 'read' | 'setText' | 'highlight' | 'clearHighlight' | 'showTab' | 'scrollField' | 'clickLabel' | 'selectLabel', arg?: unknown): string {
     return `(() => { const arg = ${JSON.stringify(arg ?? null)}; ${ZK_SOURCE}\nreturn ${fn}(arg); })()`;
 }
 

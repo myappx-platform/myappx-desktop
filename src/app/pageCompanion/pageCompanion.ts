@@ -23,6 +23,7 @@ type PageReport = {
     title?: string;
     error?: string;
     fields?: ZkField[];
+    highlighted?: boolean;
 };
 
 type PageTarget = {
@@ -31,6 +32,7 @@ type PageTarget = {
     value?: string;
     instanceName?: string;
     label?: string;
+    tabName?: string;
 };
 
 type Pending = {
@@ -70,12 +72,14 @@ export class PageCompanion {
         if (!page) {
             return {ok: false, kind: 'act', error: 'not-webui'};
         }
-        if (!this.lastUrl || page.url !== this.lastUrl) {
+        const labelAct = !action.ref && (action.op === 'set_text' || action.op === 'click' || action.op === 'select_option');
+        if (!labelAct && (!this.lastUrl || page.url !== this.lastUrl)) {
             return {ok: false, kind: 'act', error: 'page-changed'};
         }
         await this.highlightTarget(page.webContents, action);
-        if (action.op === 'set_text') {
-            const wrote = await this.zkCall(page.webContents, 'setText', {
+        if (action.op === 'set_text' || (!action.ref && (action.op === 'click' || action.op === 'select_option'))) {
+            const fn = action.op === 'click' ? 'clickLabel' : action.op === 'select_option' ? 'selectLabel' : 'setText';
+            const wrote = await this.zkCall(page.webContents, fn, {
                 instanceName: action.instanceName ?? '',
                 label: action.label ?? '',
                 value: action.value ?? '',
@@ -136,16 +140,27 @@ export class PageCompanion {
         }
         if (action.op === 'clear') {
             await this.zkCall(page.webContents, 'clearHighlight');
-            return {ok: true, kind: 'assist'};
+            return {ok: true, kind: 'assist', highlighted: false};
+        }
+        if (action.op === 'show_tab') {
+            const shown = await this.zkCall(page.webContents, 'showTab', {tabName: action.tabName ?? ''}) as {ok?: boolean} | null;
+            return {ok: !!shown && shown.ok !== false, kind: 'assist', highlighted: false};
+        }
+        if (action.op === 'scroll') {
+            const moved = await this.zkCall(page.webContents, 'scrollField', {
+                instanceName: action.instanceName ?? '',
+                label: action.label ?? '',
+            }) as {ok?: boolean} | null;
+            return {ok: !!moved && moved.ok !== false, kind: 'assist', highlighted: false};
         }
         const painted = await this.zkCall(page.webContents, 'highlight', {
             instanceName: action.instanceName ?? '',
             label: action.label ?? '',
-        });
+        }) as {ok?: boolean; highlighted?: boolean} | null;
         if (!painted) {
-            return {ok: false, kind: 'assist', error: 'act-failed'};
+            return {ok: false, kind: 'assist', error: 'act-failed', highlighted: false};
         }
-        return {ok: true, kind: 'assist'};
+        return {ok: true, kind: 'assist', highlighted: painted.highlighted === true};
     });
 
     stop = (): void => {
@@ -253,7 +268,7 @@ export class PageCompanion {
         await this.pause(250);
     }
 
-    private async zkCall(webContents: WebContents, fn: 'read' | 'setText' | 'highlight' | 'clearHighlight', arg?: unknown): Promise<unknown> {
+    private async zkCall(webContents: WebContents, fn: 'read' | 'setText' | 'highlight' | 'clearHighlight' | 'showTab' | 'scrollField' | 'clickLabel' | 'selectLabel', arg?: unknown): Promise<unknown> {
         try {
             return await webContents.executeJavaScript(zkInvoke(fn, arg), true);
         } catch (error) {

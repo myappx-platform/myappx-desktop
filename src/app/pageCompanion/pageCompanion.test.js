@@ -83,6 +83,10 @@ describe('page companion', () => {
         const wrapped = ipcValidate(handler, [pageActSchema]);
         wrapped({sender: {id: 1}}, {op: 'click'});
         expect(handler).not.toHaveBeenCalled();
+        expect(pageActSchema.validate({op: 'click', label: 'Search'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'click', label: 'Search', ref: 'e12'}).error).toBeDefined();
+        expect(pageActSchema.validate({op: 'select_option', label: 'Organization', value: 'HQ'}).error).toBeUndefined();
+        expect(pageActSchema.validate({op: 'press', value: 'Enter'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'click', ref: 'e12'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'fill_form', ref: 'e3', value: 'hello'}).error).toBeUndefined();
         expect(pageActSchema.validate({op: 'type', ref: 'e3', value: 'hello'}).error).toBeUndefined();
@@ -95,9 +99,13 @@ describe('page companion', () => {
         expect(pageActSchema.validate({op: 'evaluate', ref: 'e1'}).error).toBeDefined();
         expect(pageActSchema.validate({op: 'script', instanceName: 'Description', value: 'x'}).error).toBeDefined();
         expect(pageAssistSchema.validate({op: 'highlight', label: 'Description'}).error).toBeUndefined();
+        expect(pageAssistSchema.validate({op: 'scroll', instanceName: 'C_Order0Description'}).error).toBeUndefined();
+        expect(pageAssistSchema.validate({op: 'show_tab', tabName: 'Order'}).error).toBeUndefined();
         expect(pageAssistSchema.validate({op: 'clear'}).error).toBeUndefined();
         expect(pageAssistSchema.validate({op: 'highlight'}).error).toBeDefined();
+        expect(pageAssistSchema.validate({op: 'show_tab'}).error).toBeDefined();
         expect(pageAssistSchema.validate({op: 'fill_form', ref: 'e1', value: 'x'}).error).toBeDefined();
+        expect(pageAssistSchema.validate({op: 'highlight', label: 'Description', ref: 'e12'}).error).toBeDefined();
     });
 
     it('reads the column after the table marker in instanceName', () => {

@@ -71,7 +71,7 @@ const createListener: ExternalAPI['createListener'] = (channel: string, listener
 const desktopAPI: DesktopAPI & {
     pageSnapshot: () => Promise<unknown>;
     pageAct: (action: {op: string; ref?: string; value?: string; instanceName?: string; label?: string}) => Promise<unknown>;
-    pageAssist: (action: {op: string; instanceName?: string; label?: string}) => Promise<unknown>;
+    pageAssist: (action: {op: string; instanceName?: string; label?: string; tabName?: string}) => Promise<unknown>;
 } = {
 
     // Initialization

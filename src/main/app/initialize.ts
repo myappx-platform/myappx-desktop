@@ -312,7 +312,7 @@ function initializeInterCommunicationEventListeners() {
         [pageActSchema],
     ));
     ipcMain.handle(PAGE_ASSIST, ipcValidate(
-        (_event: IpcMainInvokeEvent, action: {op: string; instanceName?: string; label?: string}) => pageCompanion.assist(action),
+        (_event: IpcMainInvokeEvent, action: {op: string; instanceName?: string; label?: string; tabName?: string}) => pageCompanion.assist(action),
         [pageAssistSchema],
     ));
 

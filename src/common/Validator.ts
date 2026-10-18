@@ -417,7 +417,22 @@ const pageRefActSchema = Joi.object({
         then: Joi.string().max(4000).required(),
         otherwise: Joi.string().max(4000).allow('').optional(),
     }),
-    label: Joi.string().max(80).allow('').optional(),
+    label: Joi.any().forbidden(),
+});
+
+const pageLabelActSchema = Joi.object({
+    op: Joi.string().valid('click', 'select_option', 'press').required(),
+    label: Joi.when('op', {
+        is: 'press',
+        then: Joi.string().trim().max(80).allow('').optional(),
+        otherwise: Joi.string().trim().min(1).max(80).required(),
+    }),
+    value: Joi.when('op', {
+        is: Joi.valid('select_option', 'press'),
+        then: Joi.string().max(4000).required(),
+        otherwise: Joi.string().max(4000).allow('').optional(),
+    }),
+    ref: Joi.any().forbidden(),
 });
 
 const pageSetTextSchema = Joi.object({
@@ -428,14 +443,20 @@ const pageSetTextSchema = Joi.object({
     ref: Joi.any().forbidden(),
 }).or('instanceName', 'label');
 
-export const pageActSchema = Joi.alternatives().try(pageSetTextSchema, pageRefActSchema);
+export const pageActSchema = Joi.alternatives().try(pageSetTextSchema, pageLabelActSchema, pageRefActSchema);
 
 export const pageAssistSchema = Joi.alternatives().try(
     Joi.object({
-        op: Joi.string().valid('highlight').required(),
+        op: Joi.string().valid('highlight', 'scroll').required(),
         instanceName: Joi.string().trim().min(1).max(120),
         label: Joi.string().trim().min(1).max(80),
+        ref: Joi.any().forbidden(),
     }).or('instanceName', 'label'),
+    Joi.object({
+        op: Joi.string().valid('show_tab').required(),
+        tabName: Joi.string().trim().min(1).max(80).required(),
+        ref: Joi.any().forbidden(),
+    }),
     Joi.object({
         op: Joi.string().valid('clear').required(),
     }),
