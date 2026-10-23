@@ -45,6 +45,7 @@ export type RecorderDeps = {
     openEncoder: () => ClipEncoder;
     save: (id: string, body: Buffer) => {bytes: number};
     read: (id: string) => Buffer | undefined;
+    exportFile?: (id: string) => Promise<RecordReport>;
     now: () => number;
     schedule: (ms: number, fn: () => Promise<unknown> | undefined) => {cancel: () => void};
 };
@@ -92,6 +93,8 @@ export class PageRecorder {
             return Promise.resolve(this.status());
         case 'read':
             return Promise.resolve(this.readClip(action.id));
+        case 'save':
+            return this.saveCopy(action.id);
         default:
             return Promise.resolve(fail('idle'));
         }
@@ -277,6 +280,13 @@ export class PageRecorder {
         const report = fail(error);
         this.fault = report;
         return report;
+    }
+
+    private saveCopy(id: string | undefined): Promise<RecordReport> {
+        if (!id || !CLIP_ID.test(id) || !this.deps.exportFile) {
+            return Promise.resolve(fail('missing'));
+        }
+        return this.deps.exportFile(id).catch(() => fail('missing'));
     }
 
     private readClip(id: string | undefined): RecordReport {

@@ -77,8 +77,10 @@ describe('page recorder', () => {
         expect(pageRecordSchema.validate({op: 'stop'}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'status'}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'read', id: CLIP}).error).toBeUndefined();
+        expect(pageRecordSchema.validate({op: 'save', id: CLIP}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'start', id: CLIP}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'read'}).error).toBeDefined();
+        expect(pageRecordSchema.validate({op: 'save'}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'read', id: '../clip'}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'script'}).error).toBeDefined();
     });
@@ -189,5 +191,28 @@ describe('page recorder', () => {
     it('refuses to read a path outside the recordings directory', async () => {
         const {recorder} = harness();
         await expect(recorder.handle({op: 'read', id: '../page-recordings/x'})).resolves.toMatchObject({error: 'missing'});
+    });
+
+    it('asks the host to copy a clip, and keeps a cancelled save quiet', async () => {
+        const exportFile = jest.fn(async (id) => ({ok: true, kind: 'record', id}));
+        const {recorder} = harness({exportFile});
+        await recorder.handle({op: 'start'});
+        const stopped = await recorder.handle({op: 'stop'});
+        const copied = await recorder.handle({op: 'save', id: stopped.id});
+        expect(exportFile).toHaveBeenCalledWith(stopped.id);
+        expect(copied).toMatchObject({ok: true, id: stopped.id});
+
+        const refusedExport = jest.fn();
+        const refused = harness({exportFile: refusedExport});
+        await expect(refused.recorder.handle({op: 'save', id: '../x'})).resolves.toMatchObject({error: 'missing'});
+        expect(refusedExport).not.toHaveBeenCalled();
+
+        const cancelled = harness({
+            exportFile: async () => ({ok: false, kind: 'record', error: 'cancelled'}),
+        });
+        await expect(cancelled.recorder.handle({op: 'save', id: CLIP})).resolves.toMatchObject({
+            ok: false,
+            error: 'cancelled',
+        });
     });
 });

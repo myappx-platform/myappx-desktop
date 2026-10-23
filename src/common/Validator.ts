@@ -451,7 +451,7 @@ export const pageRecordSchema = Joi.alternatives().try(
         id: Joi.any().forbidden(),
     }),
     Joi.object({
-        op: Joi.string().valid('read').required(),
+        op: Joi.string().valid('read', 'save').required(),
         id: Joi.string().uuid().required(),
     }),
 );

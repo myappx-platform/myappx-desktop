@@ -5,14 +5,14 @@ import fs from 'fs';
 import * as nodeModule from 'module';
 import path from 'path';
 
-import {app, BrowserWindow} from 'electron';
+import {app, BrowserWindow, dialog} from 'electron';
 
 import {Logger} from 'common/log';
 
 import {readCdpPort} from './cdpPort';
 import {companionRoots} from './mcpLaunch';
 import pageCompanion from './pageCompanion';
-import {PageRecorder, type ClipEncoder, type ScreencastSession} from './pageRecorder';
+import {PageRecorder, type ClipEncoder, type RecordReport, type ScreencastSession} from './pageRecorder';
 import {webuiKey} from './tabPick';
 
 const log = new Logger('PageRecorder');
@@ -355,6 +355,38 @@ function readClip(id: string): Buffer | undefined {
     return fs.readFileSync(file);
 }
 
+function suggestedRecordingName(now: Date): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const day = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+    const clock = `${pad(now.getHours())}${pad(now.getMinutes())}`;
+    return `page-recording-${day}-${clock}.webm`;
+}
+
+async function exportClip(id: string): Promise<RecordReport> {
+    const file = clipFile(id);
+    if (!file || !fs.existsSync(file)) {
+        return {ok: false, kind: 'record', error: 'missing'};
+    }
+    const options = {
+        title: 'Save recording',
+        defaultPath: path.join(app.getPath('downloads'), suggestedRecordingName(new Date())),
+        filters: [{name: 'WebM video', extensions: ['webm']}],
+    };
+    const parent = BrowserWindow.getFocusedWindow();
+    const chosen = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options);
+    if (chosen.canceled || !chosen.filePath) {
+        return {ok: false, kind: 'record', error: 'cancelled'};
+    }
+    const target = chosen.filePath.toLowerCase().endsWith('.webm') ? chosen.filePath : `${chosen.filePath}.webm`;
+    try {
+        await fs.promises.copyFile(file, target);
+    } catch (error) {
+        log.warn('Could not copy the recording', error);
+        return {ok: false, kind: 'record', error: 'save-failed'};
+    }
+    return {ok: true, kind: 'record', id};
+}
+
 const recorder = new PageRecorder({
     readPort: () => readCdpPort(),
     activeUrl: () => pageCompanion.webuiUrl(),
@@ -362,6 +394,7 @@ const recorder = new PageRecorder({
     openEncoder: () => new CanvasEncoder(),
     save: saveClip,
     read: readClip,
+    exportFile: exportClip,
     now: () => Date.now(),
     schedule: (ms, fn) => {
         const timer = setTimeout(() => {
