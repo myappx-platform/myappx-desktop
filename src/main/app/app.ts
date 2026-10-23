@@ -5,6 +5,7 @@ import type {BrowserWindow, Event, WebContents, Certificate, Details} from 'elec
 import {app, dialog} from 'electron';
 
 import MainWindow from 'app/mainWindow/mainWindow';
+import {shutdownPageRecorder} from 'app/pageCompanion/pageRecorderHost';
 import Tray from 'app/system/tray/tray';
 import WebContentsManager from 'app/views/webContentsManager';
 import {Logger} from 'common/log';
@@ -85,6 +86,11 @@ export async function handleAppBeforeQuit(event?: Event) {
     }
     if (event) {
         event.preventDefault();
+    }
+    try {
+        await shutdownPageRecorder();
+    } catch {
+        log.warn('page recorder did not stop');
     }
 
     // Make sure tray icon gets removed if the user exits via CTRL-Q

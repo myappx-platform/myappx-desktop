@@ -15,6 +15,7 @@ import MenuManager from 'app/menus';
 import NavigationManager from 'app/navigationManager';
 import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
 import pageCompanion from 'app/pageCompanion/pageCompanion';
+import pageRecorder, {shutdownPageRecorder} from 'app/pageCompanion/pageRecorderHost';
 import {setupBadge} from 'app/system/badge';
 import Tray from 'app/system/tray/tray';
 import TabManager from 'app/tabs/tabManager';
@@ -38,6 +39,7 @@ import {
     GET_APP_INFO,
     PAGE_ACT,
     PAGE_ASSIST,
+    PAGE_RECORD,
     PAGE_SNAPSHOT,
     SHOW_SETTINGS_WINDOW,
     DEVELOPER_MODE_UPDATED,
@@ -52,7 +54,7 @@ import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
 import {setTestField} from 'common/utils/util';
-import {ipcValidate, pageActSchema, pageAssistSchema} from 'common/Validator';
+import {ipcValidate, pageActSchema, pageAssistSchema, pageRecordSchema} from 'common/Validator';
 import ViewManager from 'common/views/viewManager';
 import AppVersionManager from 'main/AppVersionManager';
 import AutoLauncher from 'main/AutoLauncher';
@@ -217,7 +219,10 @@ function initializeAppEventListeners() {
     app.on('browser-window-created', handleAppBrowserWindowCreated);
     app.on('activate', () => MainWindow.show());
     app.on('before-quit', handleAppBeforeQuit);
-    app.on('will-quit', () => pageCompanion.stop());
+    app.on('will-quit', () => {
+        pageCompanion.stop();
+        shutdownPageRecorder().catch(() => undefined);
+    });
     app.on('certificate-error', handleAppCertificateError);
     app.on('child-process-gone', handleChildProcessGone);
     app.on('will-finish-launching', handleAppWillFinishLaunching);
@@ -314,6 +319,10 @@ function initializeInterCommunicationEventListeners() {
     ipcMain.handle(PAGE_ASSIST, ipcValidate(
         (_event: IpcMainInvokeEvent, action: {op: string; instanceName?: string; label?: string; tabName?: string}) => pageCompanion.assist(action),
         [pageAssistSchema],
+    ));
+    ipcMain.handle(PAGE_RECORD, ipcValidate(
+        (_event: IpcMainInvokeEvent, action: {op: string; id?: string}) => pageRecorder.handle(action),
+        [pageRecordSchema],
     ));
 
     if (process.platform !== 'darwin') {

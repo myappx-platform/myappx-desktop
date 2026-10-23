@@ -15,7 +15,7 @@ function stripUrl(raw: string): string {
 }
 
 /** Same webui shell regardless of /webui, /webui/, or /webui/index.zul. */
-function webuiKey(raw: string): string | undefined {
+export function webuiKey(raw: string): string | undefined {
     try {
         const url = new URL(raw);
         if (!url.pathname.toLowerCase().includes('/webui')) {

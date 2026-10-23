@@ -163,6 +163,8 @@ export class PageCompanion {
         return {ok: true, kind: 'assist', highlighted: painted.highlighted === true};
     });
 
+    webuiUrl = (): string | undefined => this.activeWebui()?.url;
+
     stop = (): void => {
         this.ready = false;
         this.lastUrl = '';

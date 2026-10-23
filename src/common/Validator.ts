@@ -445,6 +445,17 @@ const pageSetTextSchema = Joi.object({
 
 export const pageActSchema = Joi.alternatives().try(pageSetTextSchema, pageLabelActSchema, pageRefActSchema);
 
+export const pageRecordSchema = Joi.alternatives().try(
+    Joi.object({
+        op: Joi.string().valid('start', 'stop', 'status').required(),
+        id: Joi.any().forbidden(),
+    }),
+    Joi.object({
+        op: Joi.string().valid('read').required(),
+        id: Joi.string().uuid().required(),
+    }),
+);
+
 export const pageAssistSchema = Joi.alternatives().try(
     Joi.object({
         op: Joi.string().valid('highlight', 'scroll').required(),
