@@ -180,6 +180,10 @@ describe('page recorder', () => {
         const stopped = await box.recorder.handle({op: 'stop'});
         expect(stopped).toEqual({ok: false, kind: 'record', error: 'encode-failed'});
         expect(box.saved.size).toBe(0);
+        const status = await box.recorder.handle({op: 'status'});
+        expect(status.error).toBe('encode-failed');
+        const again = await box.recorder.handle({op: 'status'});
+        expect(again.error).toBeUndefined();
     });
 
     it('refuses to read a path outside the recordings directory', async () => {

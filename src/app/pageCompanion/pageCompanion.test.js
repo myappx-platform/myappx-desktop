@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 
 import {applyCdpPort, chooseCdpPort} from 'app/pageCompanion/cdpPort';
-import {mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
+import {companionRoots, mcpLaunch, resolveMcpCli, resolveNodeHost} from 'app/pageCompanion/mcpLaunch';
 import {extractWindowHint, focusDocumentText} from 'app/pageCompanion/snapshotFocus';
 import {pickTabIndex, tabIsCurrent} from 'app/pageCompanion/tabPick';
 import {columnOf, zkInvoke} from 'app/pageCompanion/zkFields';
@@ -47,6 +47,11 @@ describe('page companion', () => {
 
     it('ignores a port that is not a number', async () => {
         await expect(chooseCdpPort({MYAPPX_CDP_PORT: 'abc'}, false, async () => true)).resolves.toBeUndefined();
+    });
+
+    it('finds the companion when webpack reports the source directory', () => {
+        const roots = companionRoots(undefined, path.join('src', 'app', 'pageCompanion'));
+        expect(roots).toContain(path.resolve('resources/page-companion'));
     });
 
     it('launches the bundled mcp with the node host', () => {

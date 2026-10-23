@@ -22,7 +22,10 @@ const CLIP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ENCODER_HTML = `<!doctype html><html><body><canvas id="c"></canvas><script>
 var canvas = document.getElementById('c');
 var ctx = canvas.getContext('2d');
-var rec, stream, chunks = [], last = Promise.resolve(), mime = 'video/webm';
+var rec, stream, track, chunks = [], last = Promise.resolve(), mime = 'video/webm';
+function stamp() {
+  if (track && track.requestFrame) track.requestFrame();
+}
 window.recFrame = function (b64) {
   last = last.then(function () {
     return new Promise(function (resolve) {
@@ -33,7 +36,9 @@ window.recFrame = function (b64) {
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
-          stream = canvas.captureStream(10);
+          stream = canvas.captureStream(0);
+          track = stream.getVideoTracks()[0];
+          stamp();
           mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp8'))
             ? 'video/webm;codecs=vp8' : 'video/webm';
           rec = new MediaRecorder(stream, {mimeType: mime});
@@ -43,6 +48,7 @@ window.recFrame = function (b64) {
           return;
         }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        stamp();
         resolve();
       };
       img.onerror = function () { resolve(); };
@@ -53,7 +59,7 @@ window.recFrame = function (b64) {
 };
 window.recStop = function () {
   return last.then(function () {
-    if (!rec) return '';
+    if (!rec || rec.state === 'inactive') return '';
     return new Promise(function (resolve) {
       rec.onstop = function () {
         var blob = new Blob(chunks, {type: mime});
@@ -65,9 +71,12 @@ window.recStop = function () {
         };
         reader.onerror = function () { resolve(''); };
         reader.readAsDataURL(blob);
-        if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+        if (stream) stream.getTracks().forEach(function (item) { item.stop(); });
       };
-      try { rec.stop(); } catch (e) { resolve(''); }
+      try {
+        if (typeof rec.requestData === 'function') rec.requestData();
+        rec.stop();
+      } catch (e) { resolve(''); }
     });
   });
 };
@@ -116,6 +125,7 @@ function loadChromium(): ChromiumLike | undefined {
             log.warn(`Playwright did not load: ${message.slice(0, 200)}`);
         }
     }
+    log.warn(`Playwright was not found. Looked in ${roots.join(' | ')}`);
     return undefined;
 }
 
@@ -130,7 +140,7 @@ async function connect(endpoint: string): Promise<CdpBrowser> {
 
     // Keep this socket for the life of the app. browser.close() on a
     // connectOverCDP session can close the attached Electron browser.
-    const browser = await chromium.connectOverCDP(endpoint);
+    const browser = await withTimeout(chromium.connectOverCDP(endpoint), 8000);
     connected = {endpoint, browser};
     browser.on('disconnected', () => {
         if (connected?.browser === browser) {
@@ -140,9 +150,23 @@ async function connect(endpoint: string): Promise<CdpBrowser> {
     return browser;
 }
 
+function sameDocument(left: string, right: string): boolean {
+    if (left === right) {
+        return true;
+    }
+    try {
+        const a = new URL(left);
+        const b = new URL(right);
+        const pathOf = (url: URL) => (url.pathname.length > 1 && url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : url.pathname);
+        return a.origin === b.origin && pathOf(a) === pathOf(b) && a.search === b.search;
+    } catch {
+        return false;
+    }
+}
+
 function pickPage(browser: CdpBrowser, pageUrl: string): CdpPage | undefined {
     const pages = browser.contexts().flatMap((context) => context.pages());
-    const exact = pages.find((page) => page.url() === pageUrl);
+    const exact = pages.find((page) => sameDocument(page.url(), pageUrl));
     if (exact) {
         return exact;
     }
@@ -152,6 +176,19 @@ function pickPage(browser: CdpBrowser, pageUrl: string): CdpPage | undefined {
     }
     const soft = pages.filter((page) => webuiKey(page.url()) === key);
     return soft.length === 1 ? soft[0] : undefined;
+}
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout')), ms);
+        work.then((value) => {
+            clearTimeout(timer);
+            resolve(value);
+        }, (error: unknown) => {
+            clearTimeout(timer);
+            reject(error instanceof Error ? error : new Error('error'));
+        });
+    });
 }
 
 async function openCdpSession(endpoint: string, pageUrl: string): Promise<ScreencastSession | undefined> {
@@ -173,12 +210,14 @@ async function openCdpSession(endpoint: string, pageUrl: string): Promise<Screen
     return {
         start: async (cb) => {
             onFrame = cb;
+            await session.send('Page.enable').catch(() => undefined);
             await session.send('Page.startScreencast', {
                 format: 'jpeg',
                 quality: 60,
                 maxWidth: 1280,
                 maxHeight: 720,
                 everyNthFrame: 2,
+                fromSurface: false,
             });
         },
         stop: async () => {
@@ -270,6 +309,7 @@ class CanvasEncoder implements ClipEncoder {
                 contextIsolation: true,
                 nodeIntegration: false,
                 backgroundThrottling: false,
+                offscreen: true,
             },
         });
         this.win = win;

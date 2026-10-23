@@ -73,6 +73,7 @@ export class PageRecorder {
     private generation = 0;
     private finishing: Promise<RecordReport> | undefined;
     private ready: RecordReport | undefined;
+    private fault: RecordReport | undefined;
     private limit: {cancel: () => void} | undefined;
     private watch: {cancel: () => void} | undefined;
     private readonly deps: RecorderDeps;
@@ -102,6 +103,11 @@ export class PageRecorder {
         }
         if (this.ready) {
             return {...this.ready, recording: false};
+        }
+        if (this.fault) {
+            const fault = this.fault;
+            this.fault = undefined;
+            return {...fault, recording: false};
         }
         return {ok: true, kind: 'record', recording: false};
     }
@@ -136,6 +142,7 @@ export class PageRecorder {
             const startedAt = this.deps.now();
             this.live = {session, encoder, startedAt};
             this.ready = undefined;
+            this.fault = undefined;
             await session.start((jpeg) => this.onFrame(jpeg));
             if (generation !== this.generation || !this.live) {
                 if (this.finishing) {
@@ -241,17 +248,17 @@ export class PageRecorder {
             body = await live.encoder.finish();
         } catch {
             await live.encoder.cancel().catch(() => undefined);
-            return fail('encode-failed');
+            return this.failFinish('encode-failed');
         }
         if (!body.length) {
-            return fail('encode-failed');
+            return this.failFinish('encode-failed');
         }
         const id = randomUUID();
         let bytes = body.length;
         try {
             bytes = this.deps.save(id, body).bytes;
         } catch {
-            return fail('encode-failed');
+            return this.failFinish('encode-failed');
         }
         const durationMs = Math.max(0, this.deps.now() - live.startedAt);
         this.ready = {
@@ -264,6 +271,12 @@ export class PageRecorder {
             bytes,
         };
         return {...this.ready};
+    }
+
+    private failFinish(error: string): RecordReport {
+        const report = fail(error);
+        this.fault = report;
+        return report;
     }
 
     private readClip(id: string | undefined): RecordReport {

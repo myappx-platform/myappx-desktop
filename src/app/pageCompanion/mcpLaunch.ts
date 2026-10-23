@@ -13,10 +13,22 @@ export type McpLaunch = {
 
 export function companionRoots(resourcesPath: string | undefined, moduleDir: string): string[] {
     const roots: string[] = [];
+    const add = (root: string) => {
+        const resolved = path.resolve(root);
+        if (!roots.includes(resolved)) {
+            roots.push(resolved);
+        }
+    };
     if (resourcesPath) {
-        roots.push(path.join(resourcesPath, 'page-companion'));
+        add(path.join(resourcesPath, 'page-companion'));
     }
-    roots.push(path.resolve(moduleDir, '../resources/page-companion'));
+
+    // Packaged apps keep the companion in process.resourcesPath. `electron dist/`
+    // does not: webpack reports __dirname as src/app/pageCompanion, and Electron's
+    // own resources directory does not contain the companion.
+    add(path.resolve(moduleDir, '../resources/page-companion'));
+    add(path.resolve(moduleDir, '../../../resources/page-companion'));
+    add(path.resolve('resources/page-companion'));
     return roots;
 }
 
