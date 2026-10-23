@@ -35,13 +35,14 @@ window.recFrame = function (b64) {
         if (!rec) {
           canvas.width = img.width;
           canvas.height = img.height;
+          ctx.imageSmoothingEnabled = false;
           ctx.drawImage(img, 0, 0);
           stream = canvas.captureStream(0);
           track = stream.getVideoTracks()[0];
           stamp();
           mime = (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp8'))
             ? 'video/webm;codecs=vp8' : 'video/webm';
-          rec = new MediaRecorder(stream, {mimeType: mime});
+          rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8000000});
           rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
           rec.start(250);
           resolve();
@@ -213,10 +214,10 @@ async function openCdpSession(endpoint: string, pageUrl: string): Promise<Screen
             await session.send('Page.enable').catch(() => undefined);
             await session.send('Page.startScreencast', {
                 format: 'jpeg',
-                quality: 60,
-                maxWidth: 1280,
-                maxHeight: 720,
-                everyNthFrame: 2,
+                quality: 85,
+                maxWidth: 2560,
+                maxHeight: 1440,
+                everyNthFrame: 1,
                 fromSurface: false,
             });
         },

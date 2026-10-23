@@ -3,7 +3,7 @@
 
 import {randomUUID} from 'crypto';
 
-export const RECORD_LIMIT_MS = 90_000;
+export const RECORD_LIMIT_MS = 600_000;
 const WATCH_MS = 1000;
 
 const CLIP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
