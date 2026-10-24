@@ -447,7 +447,7 @@ export const pageActSchema = Joi.alternatives().try(pageSetTextSchema, pageLabel
 
 export const pageRecordSchema = Joi.alternatives().try(
     Joi.object({
-        op: Joi.string().valid('start', 'stop', 'status').required(),
+        op: Joi.string().valid('start', 'stop', 'status', 'clear').required(),
         id: Joi.any().forbidden(),
     }),
     Joi.object({

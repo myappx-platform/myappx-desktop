@@ -8,6 +8,7 @@ import Joi from 'joi';
 
 import type {Theme} from '@mattermost/desktop-api';
 
+import {clearPageRecordings} from 'app/pageCompanion/pageRecorderHost';
 import popoutMenu from 'app/popoutMenu';
 import WebContentsEventManager from 'app/views/webContentEvents';
 import type BaseWindow from 'app/windows/baseWindow';
@@ -195,6 +196,7 @@ export class WebContentsManager {
                     ViewManager.updateViewTitle(primaryView.id, undefined, undefined);
                 }
             }
+            clearPageRecordings().catch(() => undefined);
         }
 
         flushCookiesStore();

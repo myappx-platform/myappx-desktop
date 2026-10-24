@@ -76,9 +76,11 @@ describe('page recorder', () => {
         expect(pageRecordSchema.validate({op: 'start'}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'stop'}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'status'}).error).toBeUndefined();
+        expect(pageRecordSchema.validate({op: 'clear'}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'read', id: CLIP}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'save', id: CLIP}).error).toBeUndefined();
         expect(pageRecordSchema.validate({op: 'start', id: CLIP}).error).toBeDefined();
+        expect(pageRecordSchema.validate({op: 'clear', id: CLIP}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'read'}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'save'}).error).toBeDefined();
         expect(pageRecordSchema.validate({op: 'read', id: '../clip'}).error).toBeDefined();
@@ -214,5 +216,39 @@ describe('page recorder', () => {
             ok: false,
             error: 'cancelled',
         });
+    });
+
+    it('keeps every finished clip until clear removes them', async () => {
+        const saved = new Map();
+        const clearFiles = jest.fn(() => {
+            saved.clear();
+        });
+        const {recorder} = harness({
+            save: (id, body) => {
+                saved.set(id, body);
+                return {bytes: body.length};
+            },
+            read: (id) => saved.get(id),
+            clearFiles,
+            openEncoder: () => ({
+                push() {},
+                finish: async () => Buffer.from(`webm-${saved.size}`),
+                cancel: async () => {},
+            }),
+        });
+        await recorder.handle({op: 'start'});
+        const first = await recorder.handle({op: 'stop'});
+        await recorder.handle({op: 'start'});
+        const second = await recorder.handle({op: 'stop'});
+        expect(first.id).toBeDefined();
+        expect(second.id).toBeDefined();
+        expect(first.id).not.toBe(second.id);
+        expect((await recorder.handle({op: 'read', id: first.id})).ok).toBe(true);
+        expect((await recorder.handle({op: 'read', id: second.id})).ok).toBe(true);
+        await expect(recorder.handle({op: 'clear'})).resolves.toMatchObject({ok: true, recording: false});
+        expect(clearFiles).toHaveBeenCalled();
+        expect(saved.size).toBe(0);
+        await expect(recorder.handle({op: 'read', id: first.id})).resolves.toMatchObject({error: 'missing'});
+        await expect(recorder.handle({op: 'read', id: second.id})).resolves.toMatchObject({error: 'missing'});
     });
 });

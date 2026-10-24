@@ -355,6 +355,23 @@ function readClip(id: string): Buffer | undefined {
     return fs.readFileSync(file);
 }
 
+function clearClips(): void {
+    const dir = recordingsDir();
+    if (!fs.existsSync(dir)) {
+        return;
+    }
+    for (const name of fs.readdirSync(dir)) {
+        if (!name.toLowerCase().endsWith('.webm')) {
+            continue;
+        }
+        try {
+            fs.unlinkSync(path.join(dir, name));
+        } catch (error) {
+            log.warn('Could not delete recording', name, error);
+        }
+    }
+}
+
 function suggestedRecordingName(now: Date): string {
     const pad = (value: number) => String(value).padStart(2, '0');
     const day = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
@@ -395,6 +412,7 @@ const recorder = new PageRecorder({
     save: saveClip,
     read: readClip,
     exportFile: exportClip,
+    clearFiles: clearClips,
     now: () => Date.now(),
     schedule: (ms, fn) => {
         const timer = setTimeout(() => {
@@ -406,6 +424,11 @@ const recorder = new PageRecorder({
 
 export async function shutdownPageRecorder(): Promise<void> {
     await recorder.handle({op: 'stop'}).catch(() => undefined);
+    await recorder.handle({op: 'clear'}).catch(() => undefined);
+}
+
+export async function clearPageRecordings(): Promise<void> {
+    await recorder.handle({op: 'clear'}).catch(() => undefined);
 }
 
 export default recorder;

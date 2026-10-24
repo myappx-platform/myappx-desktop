@@ -46,6 +46,7 @@ export type RecorderDeps = {
     save: (id: string, body: Buffer) => {bytes: number};
     read: (id: string) => Buffer | undefined;
     exportFile?: (id: string) => Promise<RecordReport>;
+    clearFiles?: () => void;
     now: () => number;
     schedule: (ms: number, fn: () => Promise<unknown> | undefined) => {cancel: () => void};
 };
@@ -95,9 +96,25 @@ export class PageRecorder {
             return Promise.resolve(this.readClip(action.id));
         case 'save':
             return this.saveCopy(action.id);
+        case 'clear':
+            return this.clearClips();
         default:
             return Promise.resolve(fail('idle'));
         }
+    }
+
+    private async clearClips(): Promise<RecordReport> {
+        if (this.live || this.starting || this.finishing) {
+            await this.finish().catch(() => undefined);
+        }
+        this.ready = undefined;
+        this.fault = undefined;
+        try {
+            this.deps.clearFiles?.();
+        } catch {
+            return fail('missing');
+        }
+        return {ok: true, kind: 'record', recording: false};
     }
 
     private status(): RecordReport {
