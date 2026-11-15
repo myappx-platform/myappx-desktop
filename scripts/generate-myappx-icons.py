@@ -3,9 +3,14 @@
 
 Sources (both live in ``src/assets/MyAppx-logo-B-ui``):
 
-* ``myappx-logo-1024.png`` - full colour app icon, used for every bitmap/ICO/ICNS output.
+* ``myappx-logo-1024.png`` - full colour app icon, used for every bitmap/ICO/ICNS
+  output, including the Windows tray icons.
 * ``myappx-logo.svg`` - vector source, used to rasterise the flat monochrome
-  glyph for the tray and menu bar icons so they stay crisp at 16-32 px.
+  glyph for the Linux and macOS menu bar icons, and to build the download
+  thumbnail, so it stays crisp at 16-32 px.
+
+The Windows tray keeps the full colour brand icon (opaque blue tile) instead of a
+monochrome glyph, so it reads the same on light and dark taskbars.
 """
 
 from __future__ import annotations
@@ -26,6 +31,8 @@ WINDOWS = ASSETS / 'windows'
 BRAND = ASSETS / 'MyAppx-logo-B-ui'
 SOURCE = BRAND / 'myappx-logo-1024.png'
 BRAND_SVG = BRAND / 'myappx-logo.svg'
+THUMBNAILS = ASSETS / 'thumbnails'
+THUMBNAIL_SVG = THUMBNAILS / 'myappx.svg'
 
 MASTER_SOURCE = ASSETS / 'myappx-appicon-master.png'
 
@@ -48,17 +55,24 @@ GLYPH_ON_LIGHT_TASKBAR = (50, 49, 48)
 GLYPH_TEMPLATE = (0, 0, 0)
 
 TRAY_SIZE = 32
+# Sizes embedded in each tray ICO, so Windows can pick a frame that is already
+# rendered at the taskbar DPI instead of rescaling a single bitmap.
+TRAY_ICO_SIZES = [16, 20, 24, 32, 40, 48]
+# Optical margin so the blue tile does not touch the taskbar edge.
+TRAY_TILE_SCALE = 0.96
 TRAY_BADGE_RADIUS = 5
 UNREAD_BADGE = (0, 229, 255, 255)
 MENTION_BADGE = (255, 23, 68, 255)
 
+# Windows tray keeps the full colour brand icon; both theme files hold the same
+# artwork because the opaque tile reads on light and dark taskbars alike.
 TRAY_ICONS = {
-    'tray_light.ico': (GLYPH_ON_DARK_TASKBAR, None),
-    'tray_dark.ico': (GLYPH_ON_LIGHT_TASKBAR, None),
-    'tray_light_unread.ico': (GLYPH_ON_DARK_TASKBAR, 'unread'),
-    'tray_dark_unread.ico': (GLYPH_ON_LIGHT_TASKBAR, 'unread'),
-    'tray_light_mention.ico': (GLYPH_ON_DARK_TASKBAR, 'mention'),
-    'tray_dark_mention.ico': (GLYPH_ON_LIGHT_TASKBAR, 'mention'),
+    'tray_light.ico': None,
+    'tray_dark.ico': None,
+    'tray_light_unread.ico': 'unread',
+    'tray_dark_unread.ico': 'unread',
+    'tray_light_mention.ico': 'mention',
+    'tray_dark_mention.ico': 'mention',
 }
 
 LINUX_ICONS = {
@@ -83,6 +97,8 @@ OSX_ICONS = {
 
 SUPERSAMPLE = 8
 GLYPH_OPTICAL_SCALE = 0.88
+# The download dropdown paints the thumbnail at 32x32 CSS pixels.
+THUMBNAIL_SIZE = 32
 
 
 def load_source() -> Image.Image:
@@ -155,6 +171,51 @@ def render_glyph(polygons: list[list[tuple[float, float]]], size: int, scale: fl
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 
+def read_tile_bounds(path: Path = BRAND_SVG) -> tuple[float, float, float, float]:
+    """Return the coordinate bounds of the brand tile (the gradient-filled path)."""
+    text = path.read_text(encoding='utf-8')
+    match = re.search(r'<path\b[^>]*fill="url\(#icon-bg\)"[^>]*d="([^"]+)"', text, re.S) or \
+        re.search(r'<path\b[^>]*d="([^"]+)"[^>]*fill="url\(#icon-bg\)"', text, re.S)
+    if not match:
+        print(f'No tile path found in {path}', file=sys.stderr)
+        raise SystemExit(1)
+    numbers = [float(value) for value in re.findall(r'-?\d+(?:\.\d+)?', match.group(1))]
+    xs = numbers[0::2]
+    ys = numbers[1::2]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def write_thumbnail_svg(size: int = THUMBNAIL_SIZE, source: Path = BRAND_SVG, output: Path = THUMBNAIL_SVG) -> None:
+    """Write the download thumbnail from the brand SVG.
+
+    The brand artwork carries a transparent margin around the tile, so the tile
+    bounds are scaled to fill the thumbnail box - the download dropdown paints
+    the icon at exactly ``size`` pixels.
+    """
+    text = source.read_text(encoding='utf-8')
+    defs = re.search(r'<defs>.*?</defs>', text, re.S)
+    paths = re.findall(r'<path\b[^>]*?/>', text, re.S)
+
+    min_x, min_y, max_x, max_y = read_tile_bounds(source)
+    span = max(max_x - min_x, max_y - min_y)
+    if span <= 0:
+        print(f'Invalid tile bounds in {source}', file=sys.stderr)
+        raise SystemExit(1)
+    scale = size / span
+
+    body = '\n'.join(f'    {path.strip()}' for path in paths)
+    defs_block = f'  {defs.group(0)}\n' if defs else ''
+    svg = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>MyAppx</title>
+{defs_block}  <g transform="scale({scale:.6f}) translate({-min_x:.2f} {-min_y:.2f})">
+{body}
+  </g>
+</svg>
+'''
+    output.write_text(svg, encoding='utf-8')
+
+
 def fit_square(source: Image.Image, size: int, scale: float = 1.0) -> Image.Image:
     inner = max(1, round(size * scale))
     ratio = min(inner / source.width, inner / source.height)
@@ -173,6 +234,46 @@ def resize_logo(source: Image.Image, size: int) -> Image.Image:
 
 def resize_with_spacing(source: Image.Image, canvas_size: int, scale: float = 0.8125) -> Image.Image:
     return fit_square(source, canvas_size, scale=scale)
+
+
+def render_tray_icon(source: Image.Image, size: int, badge: str | None = None) -> Image.Image:
+    """Render the full colour brand tile used by the Windows tray icons.
+
+    The brand PNG carries a transparent margin around the rounded square, so the
+    artwork is cropped to its bounds first; otherwise that margin would show up
+    as transparency in the tray.
+    """
+    bounds = source.getbbox()
+    artwork = source.crop(bounds) if bounds else source
+    icon = fit_square(artwork, size, scale=TRAY_TILE_SCALE)
+    if badge is None:
+        return icon
+
+    draw = ImageDraw.Draw(icon)
+    radius = max(2, round(size * TRAY_BADGE_RADIUS / TRAY_SIZE))
+    ring = max(1, round(size / TRAY_SIZE))
+    center_x = size - radius - ring - 2
+    center_y = size - radius - ring - 2
+    # White ring keeps the badge readable where it overlaps the blue tile.
+    draw.ellipse(
+        (
+            center_x - radius - ring,
+            center_y - radius - ring,
+            center_x + radius + ring,
+            center_y + radius + ring,
+        ),
+        fill=(255, 255, 255, 255),
+    )
+    draw.ellipse(
+        (
+            center_x - radius,
+            center_y - radius,
+            center_x + radius,
+            center_y + radius,
+        ),
+        fill=UNREAD_BADGE if badge == 'unread' else MENTION_BADGE,
+    )
+    return icon
 
 
 def render_mono_icon(mask: Image.Image, size: int, color: tuple[int, int, int], badge: str | None = None) -> Image.Image:
@@ -252,14 +353,16 @@ def main() -> int:
     )
     print(f'Wrote {icon_icns} ({len(ICNS_SIZES)} sizes)')
 
-    for filename, (color, badge) in TRAY_ICONS.items():
+    for filename, badge in TRAY_ICONS.items():
         tray_path = WINDOWS / filename
-        render_mono_icon(glyph(TRAY_SIZE), TRAY_SIZE, color, badge).save(
+        tray_frames = [render_tray_icon(source, size, badge) for size in TRAY_ICO_SIZES]
+        tray_frames[-1].save(
             tray_path,
             format='ICO',
-            sizes=[(TRAY_SIZE, TRAY_SIZE)],
+            sizes=[(size, size) for size in TRAY_ICO_SIZES],
+            append_images=tray_frames[:-1],
         )
-        print(f'Wrote {tray_path}')
+        print(f'Wrote {tray_path} ({len(TRAY_ICO_SIZES)} sizes)')
 
     for filename, (color, badge) in LINUX_ICONS.items():
         base = filename[:-len('_16.png')]
@@ -278,6 +381,9 @@ def main() -> int:
     for target in ('myappx-logo.svg', 'icon.svg', 'myappx-appicon.svg'):
         shutil.copyfile(BRAND_SVG, ASSETS / target)
         print(f'Wrote {ASSETS / target}')
+
+    write_thumbnail_svg()
+    print(f'Wrote {THUMBNAIL_SVG} ({THUMBNAIL_SIZE}x{THUMBNAIL_SIZE})')
 
     return 0
 
