@@ -2,6 +2,7 @@
   --fade-duration: 150ms;
   --animation-initial-delay: 500ms;
   --animation-start-duration: 750ms;
+  --animation-breathe-duration: 1.6s;
   --ease-in: cubic-bezier(0.32, 0, 0.67, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --logo-size: 128px;
@@ -36,6 +37,12 @@
     .LoadingAnimation__mark {
       animation:
         LoadingAnimation__mark-settle var(--animation-start-duration) var(--animation-initial-delay) var(--ease-in-out) forwards;
+    }
+
+    // Breathing: the logo keeps pulsing gently while the server loads.
+    .LoadingAnimation__logo {
+      animation:
+        LoadingAnimation__logo-breathe var(--animation-breathe-duration) 0ms ease-in-out infinite;
     }
   }
 
@@ -83,5 +90,16 @@
 
   to {
     transform: scale3d(1, 1, 1);
+  }
+}
+
+@keyframes LoadingAnimation__logo-breathe {
+  0%,
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+
+  50% {
+    transform: scale3d(1.08, 1.08, 1);
   }
 }
