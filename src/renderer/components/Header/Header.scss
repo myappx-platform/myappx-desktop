@@ -17,7 +17,8 @@
         justify-content: space-between;
 
         .Header__logo {
-            width: 170px;
+            display: flex;
+            align-items: center;
         }
     }
 }

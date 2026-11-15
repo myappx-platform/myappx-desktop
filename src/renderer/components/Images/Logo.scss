@@ -1,0 +1,23 @@
+@use 'base/css_variables';
+
+.MyAppxLogo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--center-channel-color);
+    line-height: 1;
+
+    &__mark {
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+    }
+
+    &__wordmark {
+        font-family: 'Metropolis', 'Open Sans', sans-serif;
+        font-size: 21px;
+        font-weight: 600;
+        letter-spacing: -0.4px;
+        white-space: nowrap;
+    }
+}

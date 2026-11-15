@@ -173,18 +173,7 @@ module.exports = merge(base, {
             type: 'asset/inline',
         }, {
             test: /\.png$/,
-            oneOf: [
-                {
-                    resourceQuery: /filename=myappx-reload-logo/,
-                    type: 'asset/resource',
-                    generator: {
-                        filename: 'myappx-reload-logo.png',
-                    },
-                },
-                {
-                    type: 'asset/resource',
-                },
-            ],
+            type: 'asset/resource',
         }, {
             test: /\.(svg|gif|jpg)$/,
             type: 'asset/resource',

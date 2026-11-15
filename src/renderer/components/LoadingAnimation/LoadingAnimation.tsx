@@ -76,7 +76,6 @@ function LoadingAnimation({
         <div
             ref={loadingIconContainerRef}
             className={classNames('LoadingAnimation', {
-                'LoadingAnimation--spinning': animationState !== LOADING_STATE.INITIALIZING,
                 'LoadingAnimation--loading': animationState === LOADING_STATE.LOADING,
                 'LoadingAnimation--loaded': animationState === LOADING_STATE.LOADED,
             })}

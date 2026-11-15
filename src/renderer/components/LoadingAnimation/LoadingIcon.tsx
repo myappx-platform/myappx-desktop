@@ -3,11 +3,11 @@
 
 import React from 'react';
 
-import logoUrl from 'assets/myappx desktop.png?filename=myappx-reload-logo';
+import logoUrl from 'assets/icon2.png';
 
 /**
- * MyAppx reload mark. Two copies of the same logo are masked into the colored
- * outer ring and the inner arrows so each layer can animate on its own.
+ * MyAppx app mark shown while the app starts up. The animation itself lives in
+ * the parent LoadingAnimation styles.
  */
 function LoadingIcon() {
     return (
@@ -15,12 +15,6 @@ function LoadingIcon() {
             className='LoadingAnimation__logo'
             aria-hidden={true}
         >
-            <img
-                className='LoadingAnimation__ring'
-                src={logoUrl}
-                alt=''
-                draggable={false}
-            />
             <img
                 className='LoadingAnimation__mark'
                 src={logoUrl}
