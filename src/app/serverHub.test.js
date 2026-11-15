@@ -487,9 +487,9 @@ describe('app/serverViewState', () => {
                 }),
             }));
 
-            const result = await serverViewState.handleServerURLValidation({}, 'https://server.com');
+            const result = await serverViewState.handleServerURLValidation({}, MYAPPX_TEST_URL);
             expect(result.status).toBe(URLValidationStatus.OK);
-            expect(result.validatedURL).toBe('https://server.com/');
+            expect(result.validatedURL).toBe('https://localhost:18443/webui');
         });
 
         it('should not update the users URL when the Site URL is blank', async () => {

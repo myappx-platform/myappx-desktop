@@ -7,15 +7,15 @@ import {parseURL} from 'common/utils/url';
 export const MYAPPX_SERVER_PORTS = new Set(['8080', '8443', '18080', '18443', '443', '80']);
 
 export function isMyAppxServerUrl(url: URL): boolean {
-    if (url.pathname.includes('/webui')) {
+    if (url?.pathname?.includes('/webui')) {
         return true;
     }
 
-    return MYAPPX_SERVER_PORTS.has(url.port || '');
+    return MYAPPX_SERVER_PORTS.has(url?.port || '');
 }
 
 export function resolveMyAppxWebUiUrl(baseUrl: URL): URL | undefined {
-    const parsed = parseURL(baseUrl.toString());
+    const parsed = parseURL(baseUrl?.toString());
     if (!parsed) {
         return undefined;
     }
@@ -29,7 +29,7 @@ export function resolveMyAppxWebUiUrl(baseUrl: URL): URL | undefined {
 
 /** Server root URL (strip trailing /webui path segment). */
 export function resolveMyAppxServerRootUrl(baseUrl: URL): URL | undefined {
-    const parsed = parseURL(baseUrl.toString());
+    const parsed = parseURL(baseUrl?.toString());
     if (!parsed) {
         return undefined;
     }

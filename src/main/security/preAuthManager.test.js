@@ -316,12 +316,12 @@ describe('main/preAuthManager', () => {
         it('should inject the secret header when the server has a secret and the header is absent', () => {
             ServerManager.lookupServerByURL.mockReturnValue({id: 'server-1', preAuthSecret: 'secret123'});
             const result = preAuthManager.injectPreAuthSecret({url: 'http://trustedurl.com/', requestHeaders: {}});
-            expect(result).toEqual({'X-Mattermost-Preauth-Secret': 'secret123'});
+            expect(result).toEqual({'X-MyAppx-Preauth-Secret': 'secret123'});
         });
 
         it('should not inject the secret header when it is already present', () => {
             ServerManager.lookupServerByURL.mockReturnValue({id: 'server-1', preAuthSecret: 'secret123'});
-            const result = preAuthManager.injectPreAuthSecret({url: 'http://trustedurl.com/', requestHeaders: {'X-Mattermost-Preauth-Secret': 'existing'}});
+            const result = preAuthManager.injectPreAuthSecret({url: 'http://trustedurl.com/', requestHeaders: {'X-MyAppx-Preauth-Secret': 'existing'}});
             expect(result).toEqual({});
         });
 
