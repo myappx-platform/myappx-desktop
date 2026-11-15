@@ -33,6 +33,7 @@ import {updateServerInfos} from 'main/app/utils';
 import DeveloperMode from 'main/developerMode';
 import {localizeMessage} from 'main/i18nManager';
 import performanceMonitor from 'main/performanceMonitor';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 import {getServerAPI} from 'main/server/serverAPI';
 
 import WebContentsEventManager from './webContentEvents';
@@ -52,6 +53,7 @@ export class MattermostWebContentsView extends EventEmitter {
 
     private log: Logger;
     private webContentsView: WebContentsView;
+    private cachedWebContentsId: number;
     private atRoot: boolean;
     private options: WebContentsViewConstructorOptions;
     private removeLoading?: NodeJS.Timeout;
@@ -80,6 +82,8 @@ export class MattermostWebContentsView extends EventEmitter {
         this.atRoot = true;
         this.webContentsView = new WebContentsView(this.options);
         applyUserAgent(this.webContentsView.webContents, DeveloperMode.get('browserOnly'));
+        this.cachedWebContentsId = this.webContentsView.webContents.id;
+        LocalNetworkAccessManager.registerWebContents(this.webContentsView.webContents);
         this.resetLoadingStatus();
 
         this.log = ViewManager.getViewLog(this.id, 'MattermostWebContentsView');
@@ -120,10 +124,25 @@ export class MattermostWebContentsView extends EventEmitter {
         return this.atRoot;
     }
     get currentURL() {
-        return parseURL(this.webContentsView.webContents.getURL());
+        const url = this.webContents?.getURL();
+        return url ? parseURL(url) : undefined;
     }
     get webContentsId() {
-        return this.webContentsView.webContents.id;
+        // Cached at construction so it remains valid during and after teardown, when
+        // the underlying webContents may already be gone.
+        return this.cachedWebContentsId;
+    }
+
+    /**
+     * Null-safe access to the underlying webContents. Returns undefined once the
+     * view has been destroyed (or is mid-teardown), so callers can use optional
+     * chaining instead of risking a "Object has been destroyed" / undefined access.
+     */
+    private get webContents() {
+        if (this.isDestroyed()) {
+            return undefined;
+        }
+        return this.webContentsView.webContents;
     }
 
     getWebContentsView = () => {
@@ -131,9 +150,9 @@ export class MattermostWebContentsView extends EventEmitter {
     };
 
     goToOffset = (offset: number) => {
-        if (this.webContentsView.webContents.navigationHistory.canGoToOffset(offset)) {
+        if (this.webContents?.navigationHistory.canGoToOffset(offset)) {
             try {
-                this.webContentsView.webContents.navigationHistory.goToOffset(offset);
+                this.webContents?.navigationHistory.goToOffset(offset);
                 this.updateHistoryButton();
             } catch (error) {
                 this.log.error(error);
@@ -144,25 +163,25 @@ export class MattermostWebContentsView extends EventEmitter {
 
     getBrowserHistoryStatus = () => {
         if (this.currentURL?.toString() === this.view.getLoadingURL()?.toString()) {
-            this.webContentsView.webContents.navigationHistory.clear();
+            this.webContents?.navigationHistory.clear();
             this.atRoot = true;
         } else {
             this.atRoot = false;
         }
 
         return {
-            canGoBack: this.webContentsView.webContents.navigationHistory.canGoBack(),
-            canGoForward: this.webContentsView.webContents.navigationHistory.canGoForward(),
+            canGoBack: this.webContents?.navigationHistory.canGoBack() ?? false,
+            canGoForward: this.webContents?.navigationHistory.canGoForward() ?? false,
         };
     };
 
     updateHistoryButton = () => {
         const {canGoBack, canGoForward} = this.getBrowserHistoryStatus();
-        this.webContentsView.webContents.send(BROWSER_HISTORY_STATUS_UPDATED, canGoBack, canGoForward);
+        this.webContents?.send(BROWSER_HISTORY_STATUS_UPDATED, canGoBack, canGoForward);
     };
 
     load = (someURL?: URL | string) => {
-        if (!this.webContentsView) {
+        if (this.isDestroyed()) {
             return;
         }
 
@@ -215,7 +234,7 @@ export class MattermostWebContentsView extends EventEmitter {
     };
 
     openFind = () => {
-        this.webContentsView.webContents.sendInputEvent({type: 'keyDown', keyCode: 'F', modifiers: [process.platform === 'darwin' ? 'cmd' : 'ctrl', 'shift']});
+        this.webContents?.sendInputEvent({type: 'keyDown', keyCode: 'F', modifiers: [process.platform === 'darwin' ? 'cmd' : 'ctrl', 'shift']});
     };
 
     setBounds = (boundaries: Electron.Rectangle) => {
@@ -223,16 +242,22 @@ export class MattermostWebContentsView extends EventEmitter {
     };
 
     destroy = () => {
-        WebContentsEventManager.removeWebContentsListeners(this.webContentsId);
+        // Remove listeners on long-lived emitters first so that any events fired
+        // during (or after) teardown can't drive callbacks into a destroyed view.
+        ServerManager.off(SERVER_URL_CHANGED, this.handleServerWasModified);
+        this.parentWindow.off('blur', this.handleAltBlur);
+
         AppState.clear(this.id);
-        performanceMonitor.unregisterView(this.webContentsView.webContents.id);
-        if (this.parentWindow) {
+        WebContentsEventManager.removeWebContentsListeners(this.webContentsId);
+        performanceMonitor.unregisterView(this.webContentsId);
+        LocalNetworkAccessManager.unregisterWebContents(this.webContentsId);
+        if (this.parentWindow && !this.parentWindow.isDestroyed()) {
             this.parentWindow.contentView.removeChildView(this.webContentsView);
         }
         if (this.contextMenu) {
             this.contextMenu.dispose();
         }
-        this.webContentsView.webContents.close();
+        this.webContents?.close();
 
         if (this.retryLoad) {
             clearTimeout(this.retryLoad);
@@ -291,12 +316,13 @@ export class MattermostWebContentsView extends EventEmitter {
     useLastPath = () => {
         if (this.lastPath) {
             if (ViewManager.isPrimaryView(this.view.id)) {
-                this.webContentsView.webContents.send(BROWSER_HISTORY_PUSH, this.lastPath);
+                this.webContents?.send(BROWSER_HISTORY_PUSH, this.lastPath);
             } else {
-                this.webContentsView.webContents.once('did-finish-load', () => {
-                    this.webContentsView.webContents.send(BROWSER_HISTORY_PUSH, this.lastPath);
+                const pathToPush = this.lastPath;
+                this.webContents?.once('did-finish-load', () => {
+                    this.webContents?.send(BROWSER_HISTORY_PUSH, pathToPush);
                 });
-                this.webContentsView.webContents.reload();
+                this.webContents?.reload();
             }
             this.lastPath = undefined;
         }
@@ -326,16 +352,16 @@ export class MattermostWebContentsView extends EventEmitter {
      */
 
     sendToRenderer = (channel: string, ...args: any[]) => {
-        this.webContentsView.webContents.send(channel, ...args);
+        this.webContents?.send(channel, ...args);
     };
 
     isDestroyed = () => {
-        return this.webContentsView.webContents.isDestroyed();
+        return this.webContentsView?.webContents?.isDestroyed() ?? true;
     };
 
     focus = () => {
         if (this.parentWindow.isFocused()) {
-            this.webContentsView.webContents.focus();
+            this.webContents?.focus();
         }
     };
 
@@ -350,7 +376,7 @@ export class MattermostWebContentsView extends EventEmitter {
     private retry = (loadURL: string) => {
         return () => {
             // window was closed while retrying
-            if (!this.webContentsView || !this.webContentsView.webContents || this.isDestroyed()) {
+            if (this.isDestroyed()) {
                 return;
             }
             applyUserAgent(this.webContentsView.webContents, DeveloperMode.get('browserOnly'));
@@ -372,7 +398,7 @@ export class MattermostWebContentsView extends EventEmitter {
     private retryInBackground = (loadURL: string) => {
         return () => {
             // window was closed while retrying
-            if (!this.webContentsView || !this.webContentsView.webContents) {
+            if (this.isDestroyed()) {
                 return;
             }
             const parsedURL = parseURL(loadURL);
@@ -409,6 +435,9 @@ export class MattermostWebContentsView extends EventEmitter {
 
     private loadSuccess = (loadURL: string) => {
         return () => {
+            if (this.isDestroyed()) {
+                return;
+            }
             const serverInfo = ServerManager.getRemoteInfo(this.view.serverId);
             if (!serverInfo?.serverVersion || semver.gte(serverInfo.serverVersion, '9.4.0')) {
                 this.log.verbose('finished loading URL');

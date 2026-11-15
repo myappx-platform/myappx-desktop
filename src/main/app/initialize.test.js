@@ -8,6 +8,7 @@ import {app, session} from 'electron';
 import NavigationManager from 'app/navigationManager';
 import Config from 'common/config';
 import parseArgs from 'main/ParseArgs';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 
 jest.mock('main/autoUpdater', () => ({
     __esModule: true,
@@ -78,6 +79,7 @@ jest.mock('electron', () => ({
     session: {
         defaultSession: {
             webRequest: {
+                onBeforeRequest: jest.fn(),
                 onHeadersReceived: jest.fn(),
                 onBeforeSendHeaders: jest.fn(),
             },
@@ -116,9 +118,13 @@ jest.mock('electron-devtools-installer', () => {
 const isDev = false;
 jest.mock('electron-is-dev', () => isDev);
 
-jest.mock('common/constants', () => ({
-    MYAPPX_PROTOCOL: 'myappx',
-}));
+jest.mock('common/constants', () => {
+    const original = jest.requireActual('common/constants');
+    return {
+        ...original,
+        MYAPPX_PROTOCOL: 'myappx',
+    };
+});
 
 jest.mock('app/serverHub', () => ({
     init: jest.fn(),
@@ -133,10 +139,21 @@ jest.mock('common/config', () => ({
 jest.mock('main/security/allowProtocolDialog', () => ({
     init: jest.fn(),
 }));
+jest.mock('main/security/localNetworkAccess', () => {
+    const actual = jest.requireActual('main/security/localNetworkAccess');
+    return {
+        __esModule: true,
+        ...actual,
+        default: actual.default,
+    };
+});
 jest.mock('main/app/app', () => ({}));
 jest.mock('main/app/config', () => ({
     handleConfigUpdate: jest.fn(),
     handleUpdateTheme: jest.fn(),
+}));
+jest.mock('main/e2e/appReady', () => ({
+    registerMainWindowE2EReadiness: jest.fn(),
 }));
 jest.mock('main/app/intercom', () => ({
     handleMainWindowIsShown: jest.fn(),
@@ -161,6 +178,8 @@ jest.mock('main/AutoLauncher', () => ({
 jest.mock('main/updateNotifier', () => ({}));
 jest.mock('app/system/badge', () => ({
     setupBadge: jest.fn(),
+    setBadgeTestRecorder: jest.fn(),
+    setUnreadBadgeSetting: jest.fn(),
 }));
 jest.mock('main/CriticalErrorHandler', () => ({
     init: jest.fn(),
@@ -170,11 +189,6 @@ jest.mock('main/notifications', () => ({
     getDoNotDisturb: jest.fn(),
 }));
 jest.mock('main/ParseArgs', () => jest.fn());
-jest.mock('common/servers/serverManager', () => ({
-    reloadFromConfig: jest.fn(),
-    getAllServers: jest.fn(),
-    on: jest.fn(),
-}));
 jest.mock('app/system/tray/tray', () => ({
     refreshImages: jest.fn(),
     setup: jest.fn(),
@@ -184,10 +198,6 @@ jest.mock('main/UserActivityMonitor', () => ({
     startMonitoring: jest.fn(),
 }));
 jest.mock('app/callsWidgetWindow', () => ({}));
-jest.mock('app/views/webContentsManager', () => ({
-    getViewByWebContentsId: jest.fn(),
-    handleDeepLink: jest.fn(),
-}));
 jest.mock('app/mainWindow/mainWindow', () => ({
     get: jest.fn(),
     show: jest.fn(),
@@ -198,6 +208,7 @@ jest.mock('app/mainWindow/mainWindow', () => ({
 jest.mock('app/views/webContentsManager', () => ({
     on: jest.fn(),
     getServerURLByViewId: jest.fn(),
+    getViewByWebContentsId: jest.fn(),
 }));
 
 jest.mock('app/navigationManager', () => ({
@@ -208,6 +219,11 @@ jest.mock('app/navigationManager', () => ({
 
 jest.mock('app/tabs/tabManager', () => ({
     on: jest.fn(),
+}));
+
+jest.mock('app/windows/popoutManager', () => ({
+    __esModule: true,
+    default: {},
 }));
 
 jest.mock('main/developerMode', () => ({
@@ -221,6 +237,7 @@ jest.mock('common/servers/serverManager', () => ({
     off: jest.fn(),
     prependListener: jest.fn(),
     getServer: jest.fn(),
+    getAllServers: jest.fn(() => []),
 }));
 
 jest.mock('common/views/viewManager', () => ({
@@ -231,8 +248,14 @@ jest.mock('common/views/viewManager', () => ({
 jest.mock('app/menus', () => ({
     refreshMenu: jest.fn(),
 }));
+jest.mock('app/menus/tray', () => ({
+    __esModule: true,
+    default: jest.fn(() => ({items: []})),
+}));
 
 jest.mock('main/security/preAuthManager', () => ({
+    handlePreAuthSecret: jest.fn(),
+    injectPreAuthSecret: jest.fn(() => ({})),
     loadPreAuthSecretForServer: jest.fn(),
     preAuthHeaderOnHeadersReceivedHander: jest.fn(),
 }));
@@ -241,6 +264,9 @@ jest.mock('main/security/preAuthSecretLoader', () => ({
     applyLocalPreAuthSecretToServers: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('main/sessionAttributes/sessionAttributesManager', () => ({
+    injectHeader: jest.fn(() => ({})),
+}));
 jest.mock('main/sentryHandler', () => ({
     init: jest.fn(),
 }));
@@ -337,6 +363,67 @@ describe('main/app/initialize', () => {
             });
 
             expect(NavigationManager.openLinkInPrimaryTab).toHaveBeenCalledWith('mattermost://server-1.com');
+        });
+
+        describe('local network request filter (onBeforeRequest)', () => {
+            const SERVER_WEBCONTENTS_ID = 1;
+
+            const getRegisteredHandler = async () => {
+                const ServerManager = jest.requireMock('common/servers/serverManager');
+                const mockedLocalNetworkAccessManager = jest.mocked(LocalNetworkAccessManager);
+                ServerManager.getAllServers.mockReturnValue([{url: new URL('http://127.0.0.1:8065')}]);
+                mockedLocalNetworkAccessManager.clear();
+                mockedLocalNetworkAccessManager.registerWebContents({id: SERVER_WEBCONTENTS_ID});
+                await initialize();
+                const calls = session.defaultSession.webRequest.onBeforeRequest.mock.calls;
+                return calls[calls.length - 1][0];
+            };
+
+            it('cancels server-view requests to local/private targets (via webContentsId)', async () => {
+                const handler = await getRegisteredHandler();
+                const callback = jest.fn();
+
+                await handler({url: 'http://127.0.0.1:7777/secret', webContentsId: SERVER_WEBCONTENTS_ID, resourceType: 'xhr'}, callback);
+
+                expect(callback).toHaveBeenCalledWith({cancel: true});
+            });
+
+            it('allows requests to the configured server origin', async () => {
+                const handler = await getRegisteredHandler();
+                const callback = jest.fn();
+
+                await handler({url: 'http://127.0.0.1:8065/api/v4/system/ping', webContentsId: SERVER_WEBCONTENTS_ID, resourceType: 'xhr'}, callback);
+
+                expect(callback).toHaveBeenCalledWith({});
+            });
+
+            it('does not cancel requests from non-server web contents', async () => {
+                const handler = await getRegisteredHandler();
+                const callback = jest.fn();
+
+                await handler({url: 'http://127.0.0.1:7777/secret', webContentsId: 999, resourceType: 'xhr'}, callback);
+
+                expect(callback).toHaveBeenCalledWith({});
+            });
+
+            it('cancels unowned requests to local/private targets', async () => {
+                const handler = await getRegisteredHandler();
+                const callback = jest.fn();
+
+                await handler({url: 'http://127.0.0.1:7777/secret', resourceType: 'xhr'}, callback);
+
+                expect(callback).toHaveBeenCalledWith({cancel: true});
+            });
+
+            it('allows the request when the policy check throws', async () => {
+                const handler = await getRegisteredHandler();
+                jest.spyOn(jest.mocked(LocalNetworkAccessManager), 'shouldCancelLocalNetworkRequest').mockRejectedValueOnce(new Error('boom'));
+                const callback = jest.fn();
+
+                await handler({url: 'http://127.0.0.1:7777/secret', webContentsId: SERVER_WEBCONTENTS_ID, resourceType: 'xhr'}, callback);
+
+                expect(callback).toHaveBeenCalledWith({});
+            });
         });
     });
 });

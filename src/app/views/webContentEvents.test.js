@@ -9,6 +9,7 @@ import NavigationManager from 'app/navigationManager';
 import WebContentsManager from 'app/views/webContentsManager';
 import {getLevel} from 'common/log';
 import ContextMenu from 'main/contextMenu';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 
 import PluginsPopUpsManager from './pluginsPopUps';
 import {WebContentsEventManager} from './webContentEvents';
@@ -40,6 +41,15 @@ jest.mock('common/views/viewManager', () => ({
 
 jest.mock('app/views/pluginsPopUps', () => ({
     handleNewWindow: jest.fn(() => ({action: 'allow'})),
+    generateHandleCreateWindow: jest.fn(() => jest.fn()),
+}));
+
+jest.mock('main/security/localNetworkAccess', () => ({
+    __esModule: true,
+    default: {
+        registerWebContents: jest.fn(),
+        unregisterWebContents: jest.fn(),
+    },
 }));
 
 jest.mock('main/utils', () => ({
@@ -127,6 +137,107 @@ describe('main/views/webContentsEvents', () => {
         it('should not allow navigation under any other circumstances', () => {
             willNavigate(event, 'http://someotherurl.com');
             expect(event.preventDefault).toBeCalled();
+        });
+    });
+
+    describe('addWebContentsEventListeners', () => {
+        const setupContents = () => {
+            const handlers = {};
+            const contents = {
+                id: 1,
+                on: jest.fn((eventName, handler) => {
+                    handlers[eventName] = handler;
+                }),
+                once: jest.fn(),
+                removeListener: jest.fn(),
+                setWindowOpenHandler: jest.fn(),
+            };
+            return {handlers, contents};
+        };
+
+        it('should attach distinct main-frame and subframe navigation guards and remove both', () => {
+            const webContentsEventManager = new WebContentsEventManager();
+            const {handlers, contents} = setupContents();
+
+            webContentsEventManager.addWebContentsEventListeners(contents);
+
+            expect(contents.on).toHaveBeenCalledWith('will-navigate', expect.any(Function));
+            expect(contents.on).toHaveBeenCalledWith('will-frame-navigate', expect.any(Function));
+            expect(contents.on).toHaveBeenCalledWith('will-redirect', expect.any(Function));
+
+            // Distinct from will-navigate so a main-frame navigation is not processed twice.
+            expect(handlers['will-frame-navigate']).not.toBe(handlers['will-navigate']);
+
+            webContentsEventManager.removeWebContentsListeners(1);
+
+            expect(contents.removeListener).toHaveBeenCalledWith('will-navigate', handlers['will-navigate']);
+            expect(contents.removeListener).toHaveBeenCalledWith('will-frame-navigate', handlers['will-frame-navigate']);
+            expect(contents.removeListener).toHaveBeenCalledWith('will-redirect', handlers['will-redirect']);
+        });
+
+        it('redirect guard applies the main-frame policy to main-frame redirects', () => {
+            const webContentsEventManager = new WebContentsEventManager();
+            webContentsEventManager.getServerURLFromWebContentsId = () => new URL('http://server-1.com');
+            const {handlers, contents} = setupContents();
+            webContentsEventManager.addWebContentsEventListeners(contents);
+            const willRedirect = handlers['will-redirect'];
+
+            const internalEvent = {preventDefault: jest.fn(), isMainFrame: true, url: 'http://server-1.com/subpath'};
+            willRedirect(internalEvent, internalEvent.url);
+            expect(internalEvent.preventDefault).not.toHaveBeenCalled();
+
+            const externalEvent = {preventDefault: jest.fn(), isMainFrame: true, url: 'http://someotherurl.com'};
+            willRedirect(externalEvent, externalEvent.url);
+            expect(externalEvent.preventDefault).toHaveBeenCalled();
+        });
+
+        it('redirect guard applies the subframe policy to subframe redirects', () => {
+            const webContentsEventManager = new WebContentsEventManager();
+            webContentsEventManager.getServerURLFromWebContentsId = () => new URL('http://server-1.com');
+            const {handlers, contents} = setupContents();
+            webContentsEventManager.addWebContentsEventListeners(contents);
+            const willRedirect = handlers['will-redirect'];
+
+            // External redirects are how ordinary embeds work, so they stay allowed for subframes.
+            const embedEvent = {preventDefault: jest.fn(), isMainFrame: false, url: 'https://www.youtube.com/embed/abc'};
+            willRedirect(embedEvent, embedEvent.url);
+            expect(embedEvent.preventDefault).not.toHaveBeenCalled();
+
+            const protocolEvent = {preventDefault: jest.fn(), isMainFrame: false, url: 'custom://payload'};
+            willRedirect(protocolEvent, protocolEvent.url);
+            expect(protocolEvent.preventDefault).toHaveBeenCalled();
+        });
+
+        it('subframe guard ignores main-frame navigations (handled by will-navigate)', () => {
+            const webContentsEventManager = new WebContentsEventManager();
+            const {handlers, contents} = setupContents();
+            webContentsEventManager.addWebContentsEventListeners(contents);
+
+            const frameEvent = {preventDefault: jest.fn(), isMainFrame: true, url: 'https://example.com/anything'};
+            handlers['will-frame-navigate'](frameEvent);
+
+            expect(frameEvent.preventDefault).not.toHaveBeenCalled();
+        });
+
+        it('subframe guard allows web embeds (http/https/about) but blocks other protocols', () => {
+            const webContentsEventManager = new WebContentsEventManager();
+            const {handlers, contents} = setupContents();
+            webContentsEventManager.addWebContentsEventListeners(contents);
+            const willFrameNavigate = handlers['will-frame-navigate'];
+
+            const allowed = ['https://www.youtube.com/embed/abc', 'http://example.com/widget', 'about:blank', 'about:srcdoc'];
+            allowed.forEach((url) => {
+                const ev = {preventDefault: jest.fn(), isMainFrame: false, url};
+                willFrameNavigate(ev);
+                expect(ev.preventDefault).not.toHaveBeenCalled();
+            });
+
+            const blocked = ['tel:+15551234', 'mailto:user@example.com', 'custom://payload', 'file:///etc/passwd'];
+            blocked.forEach((url) => {
+                const ev = {preventDefault: jest.fn(), isMainFrame: false, url};
+                willFrameNavigate(ev);
+                expect(ev.preventDefault).toHaveBeenCalled();
+            });
         });
     });
 
@@ -339,6 +450,7 @@ describe('main/views/webContentsEvents', () => {
         it('should open popup window for plugins', () => {
             expect(newWindow({url: 'http://server-1.com/plugins/myplugin/login'})).toStrictEqual({action: 'deny'});
             expect(webContentsEventManager.popupWindow).toBeTruthy();
+            expect(jest.mocked(LocalNetworkAccessManager.registerWebContents)).toHaveBeenCalled();
         });
 
         it('should open popup window for managed resources', () => {
@@ -362,6 +474,7 @@ describe('main/views/webContentsEvents', () => {
                 show: jest.fn(),
                 loadURL: jest.fn(),
                 webContents: {
+                    id: 99,
                     on: jest.fn(),
                     setWindowOpenHandler: jest.fn(),
                 },
@@ -375,6 +488,7 @@ describe('main/views/webContentsEvents', () => {
             expect(closedCallback).toBeDefined();
 
             closedCallback();
+            expect(jest.mocked(LocalNetworkAccessManager.unregisterWebContents)).toHaveBeenCalledWith(99);
             expect(mockContextMenu.dispose).toHaveBeenCalled();
         });
     });

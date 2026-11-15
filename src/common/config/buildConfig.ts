@@ -26,6 +26,7 @@ import {
  *                                          when "enableServerManagement is set to false
  * @prop {[]} managedResources - Defines which paths are managed
  * @prop {[]} allowedProtocols - Defines which protocols should be automatically allowed
+ * @prop {[]} trustedEmbeddedMediaOrigins - Explicit origin pairs that may share media permissions for embedded content
  */
 const buildConfig: BuildConfig = {
     defaultServers: [
@@ -52,6 +53,7 @@ const buildConfig: BuildConfig = {
         'mailto',
         'tel',
     ],
+    trustedEmbeddedMediaOrigins: [],
 };
 
 export default buildConfig;

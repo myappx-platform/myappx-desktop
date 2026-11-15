@@ -53,9 +53,11 @@ const defaultPreferences: ConfigV4 = {
     logLevel: 'info',
     enableMetrics: false,
     enableSentry: false,
+    enableSessionAttributes: true,
     viewLimit: 15,
     themeSyncing: false,
     useNativeTitleBar: false,
+    trustedEmbeddedMediaOrigins: [],
 };
 
 export default defaultPreferences;

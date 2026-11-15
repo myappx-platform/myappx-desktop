@@ -8,6 +8,7 @@ import {parseURL} from 'common/utils/url';
 import {isMyAppxServerUrl, resolveMyAppxMonitorUrl, resolveMyAppxWebUiUrl} from 'main/server/myAppxServerUrl';
 
 import type {ClientConfig, RemoteInfo} from 'types/server';
+import type {SAField} from 'types/sessionAttributes';
 
 import {getServerAPI} from './serverAPI';
 
@@ -98,6 +99,12 @@ export class ServerInfo {
             this.onGetLicense,
             parseURL(`${this.server.url}/api/v4/license/client?format=old`),
         );
+        if (this.remoteInfo.sessionAttributesEnabled) {
+            await this.getRemoteInfo<SAField[]>(
+                this.onGetSessionAttributesManifest,
+                parseURL(`${this.server.url}/api/v4/users/sessions/attributes/manifest`),
+            );
+        }
 
         return this.remoteInfo;
     };
@@ -133,6 +140,7 @@ export class ServerInfo {
 
     private onGetConfig = (data: ClientConfig) => {
         this.remoteInfo.serverVersion = data.Version;
+        this.remoteInfo.sessionAttributesEnabled = data.FeatureFlagSessionAttributes === 'true';
         this.remoteInfo.siteURL = data.SiteURL;
         this.remoteInfo.siteName = data.SiteName;
         this.remoteInfo.hasFocalboard = this.remoteInfo.hasFocalboard || data.BuildBoards === 'true';
@@ -178,4 +186,8 @@ export class ServerInfo {
     };
 
     private isMyAppxServer = () => isMyAppxServerUrl(this.server.url);
+
+    private onGetSessionAttributesManifest = (data: SAField[]) => {
+        this.remoteInfo.sessionAttributesManifest = data;
+    };
 }

@@ -18,7 +18,6 @@ import pageCompanion from 'app/pageCompanion/pageCompanion';
 import pageRecorder, {shutdownPageRecorder} from 'app/pageCompanion/pageRecorderHost';
 import {setupBadge} from 'app/system/badge';
 import Tray from 'app/system/tray/tray';
-import TabManager from 'app/tabs/tabManager';
 import WebContentsManager from 'app/views/webContentsManager';
 import {
     QUIT,
@@ -53,9 +52,7 @@ import {MYAPPX_PROTOCOL} from 'common/constants';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
 import {parseURL} from 'common/utils/url';
-import {setTestField} from 'common/utils/util';
 import {ipcValidate, pageActSchema, pageAssistSchema, pageRecordSchema} from 'common/Validator';
-import ViewManager from 'common/views/viewManager';
 import AppVersionManager from 'main/AppVersionManager';
 import AutoLauncher from 'main/AutoLauncher';
 import updateManager from 'main/autoUpdater';
@@ -63,6 +60,7 @@ import {configPath, updatePaths} from 'main/constants';
 import CriticalErrorHandler from 'main/CriticalErrorHandler';
 import DeveloperMode from 'main/developerMode';
 import downloadsManager from 'main/downloadsManager';
+import {maybeRegisterE2eHooks} from 'main/e2e/register';
 import i18nManager from 'main/i18nManager';
 import NonceManager from 'main/nonceManager';
 import {getDoNotDisturb} from 'main/notifications';
@@ -70,10 +68,13 @@ import parseArgs from 'main/ParseArgs';
 import PerformanceMonitor from 'main/performanceMonitor';
 import secureStorage from 'main/secureStorage';
 import AllowProtocolDialog from 'main/security/allowProtocolDialog';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 import PermissionsManager from 'main/security/permissionsManager';
 import PreAuthManager from 'main/security/preAuthManager';
 import {applyLocalPreAuthSecretToServers} from 'main/security/preAuthSecretLoader';
 import sentryHandler from 'main/sentryHandler';
+import SessionAttributesManager from 'main/sessionAttributes/sessionAttributesManager';
+import updateNotifier from 'main/updateNotifier';
 import UserActivityMonitor from 'main/UserActivityMonitor';
 import {composeUserAgent} from 'main/utils';
 
@@ -103,7 +104,6 @@ import {
     handleQuit,
     handlePingDomain,
     handleToggleSecureInput,
-    handleShowSettingsModal,
 } from './intercom';
 import {
     clearAppCache,
@@ -345,10 +345,6 @@ function initializeInterCommunicationEventListeners() {
 
     ipcMain.on(TOGGLE_SECURE_INPUT, handleToggleSecureInput);
 
-    if (process.env.NODE_ENV === 'test') {
-        ipcMain.on(SHOW_SETTINGS_WINDOW, handleShowSettingsModal);
-    }
-
     ipcMain.handle(GET_FULL_SCREEN_STATUS, (event: IpcMainInvokeEvent) => {
         return BrowserWindow.fromWebContents(event.sender)?.isFullScreen();
     });
@@ -357,13 +353,7 @@ function initializeInterCommunicationEventListeners() {
 async function initializeAfterAppReady() {
     pageCompanion.warm();
 
-    setTestField('__e2eTestRefs', {
-        MainWindow,
-        ServerManager,
-        TabManager,
-        ViewManager,
-        WebContentsManager,
-    });
+    maybeRegisterE2eHooks();
 
     // Block all NTLM/Negotiate requests by default
     session.defaultSession.allowNTLMCredentialsForDomains('');
@@ -401,6 +391,26 @@ async function initializeAfterAppReady() {
 
     app.setAppUserModelId('MyAppx.Desktop'); // Use explicit AppUserModelID
     const defaultSession = session.defaultSession;
+    defaultSession.webRequest.onBeforeRequest(async (details, callback) => {
+        try {
+            const shouldCancel = await LocalNetworkAccessManager.shouldCancelLocalNetworkRequest(details);
+
+            if (shouldCancel) {
+                log.warn('Blocked server content from accessing local or private network URL', {
+                    resourceType: details.resourceType,
+                    origin: parseURL(details.url)?.origin,
+                    webContentsId: details.webContentsId,
+                });
+                callback({cancel: true});
+                return;
+            }
+        } catch (error) {
+            log.warn('Error while checking local network request policy', {error});
+        }
+
+        callback({});
+    });
+
     defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const url = parseURL(details.url);
         if (url?.protocol === 'myappx-desktop:' && url?.pathname.endsWith('html')) {
@@ -421,10 +431,14 @@ async function initializeAfterAppReady() {
         downloadsManager.webRequestOnHeadersReceivedHandler(details, callback);
     });
 
-    // Normalize User-Agent and inject X-MyAppx-Preauth-Secret for all configured server requests
-    // (must register before ServerManager.init loads tabs)
+    // Normalize User-Agent for all requests and inject the pre-auth secret plus session
+    // attributes for configured server requests (must register before ServerManager.init loads tabs)
     defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
         try {
+            const injectedHeaders: Record<string, string | string[]> = {
+                ...PreAuthManager.injectPreAuthSecret(details),
+                ...SessionAttributesManager.injectHeader(details),
+            };
             const server = ServerManager.lookupServerByURL(details.url);
 
             if (server) {
@@ -436,17 +450,20 @@ async function initializeAfterAppReady() {
                     }
                 }
                 requestHeaders['User-Agent'] = composeUserAgent(DeveloperMode.get('browserOnly'));
-                if (server.preAuthSecret) {
-                    requestHeaders['X-MyAppx-Preauth-Secret'] = server.preAuthSecret;
-                }
-                callback({requestHeaders});
+                callback({requestHeaders: {...requestHeaders, ...injectedHeaders}});
                 return;
             }
-        } catch (error) {
-            log.debug('Error injecting server request headers:', {error});
-        }
 
-        callback({requestHeaders: details.requestHeaders});
+            callback({
+                requestHeaders: {
+                    ...details.requestHeaders,
+                    ...injectedHeaders,
+                },
+            });
+        } catch (error) {
+            log.debug('Header injector error', {error});
+            callback({requestHeaders: details.requestHeaders});
+        }
     });
 
     const updateServerInfo = (serverId: string) => {

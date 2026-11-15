@@ -219,7 +219,14 @@ describe('common/Validator', () => {
             themeSyncing: true,
             enableMetrics: true,
             enableSentry: true,
+            enableSessionAttributes: true,
             useNativeTitleBar: false,
+            trustedEmbeddedMediaOrigins: [
+                {
+                    serverOrigin: 'https://chat.example.com',
+                    embeddedOrigin: 'https://meet.example.com',
+                },
+            ],
         };
 
         it('should validate v4 config data', () => {
@@ -232,6 +239,19 @@ describe('common/Validator', () => {
                 spellCheckerURL: 'a-bad>url',
             };
             expect(Validator.validateV4ConfigData(modifiedConfig)).not.toHaveProperty('spellCheckerURL');
+        });
+
+        it('should reject trusted embedded media values that are not origins', () => {
+            const modifiedConfig = {
+                ...config,
+                trustedEmbeddedMediaOrigins: [
+                    {
+                        serverOrigin: 'https://chat.example.com/path',
+                        embeddedOrigin: 'https://meet.example.com',
+                    },
+                ],
+            };
+            expect(Validator.validateV4ConfigData(modifiedConfig)).toBeNull();
         });
     });
 
@@ -345,6 +365,19 @@ describe('common/Validator', () => {
 
             expect(wrapped(event, 'Title', 'Body', '', '', '', false, '')).toBe('ok');
             expect(handler).toHaveBeenCalledWith(event, 'Title', 'Body', '', '', '', false, '');
+        });
+    });
+
+    describe('desktopSourcesOptsSchema', () => {
+        const opts = (thumbnailSize) => ({types: ['screen', 'window'], thumbnailSize});
+
+        it('accepts a typical thumbnail size', () => {
+            expect(Validator.desktopSourcesOptsSchema.validate(opts({width: 400, height: 400})).error).toBeUndefined();
+        });
+
+        it('rejects oversized thumbnail dimensions', () => {
+            expect(Validator.desktopSourcesOptsSchema.validate(opts({width: 1000000, height: 400})).error).toBeDefined();
+            expect(Validator.desktopSourcesOptsSchema.validate(opts({width: 400, height: 1000000})).error).toBeDefined();
         });
     });
 });

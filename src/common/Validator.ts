@@ -22,6 +22,19 @@ const defaultWindowHeight = 700;
 const minWindowWidth = 400;
 const minWindowHeight = 240;
 
+const originOnlyStringSchema = Joi.string().custom((value, helpers) => {
+    try {
+        const url = new URL(value);
+        if (url.origin !== value) {
+            return helpers.error('string.uri');
+        }
+
+        return value;
+    } catch {
+        return helpers.error('string.uri');
+    }
+});
+
 const argsSchema = Joi.object<Args>({
     hidden: Joi.boolean(),
     disableDevMode: Joi.boolean(),
@@ -185,10 +198,15 @@ const configDataSchemaV4 = Joi.object<ConfigV4>({
     appLanguage: Joi.string().allow(''),
     enableMetrics: Joi.boolean().default(true),
     enableSentry: Joi.boolean().default(true),
+    enableSessionAttributes: Joi.boolean().default(true),
     viewLimit: Joi.number().integer().min(1),
     themeSyncing: Joi.boolean().default(true),
     skippedVersions: Joi.array().items(Joi.string()).default([]),
     useNativeTitleBar: Joi.boolean().default(false),
+    trustedEmbeddedMediaOrigins: Joi.array().items(Joi.object({
+        serverOrigin: originOnlyStringSchema.required(),
+        embeddedOrigin: originOnlyStringSchema.required(),
+    })).default([]),
 });
 
 // eg. data['community.mattermost.com'] = { data: 'certificate data', issuerName: 'COMODO RSA Domain Validation Secure Server CA'};
@@ -476,8 +494,19 @@ export const pageAssistSchema = Joi.alternatives().try(
 export const desktopSourcesOptsSchema = Joi.object({
     types: Joi.array().items(Joi.string().valid('screen', 'window')).required(),
     thumbnailSize: Joi.object({
-        height: Joi.number().required(),
-        width: Joi.number().required(),
+        height: Joi.number().integer().min(0).max(4096).required(),
+        width: Joi.number().integer().min(0).max(4096).required(),
     }),
     fetchWindowIcons: Joi.boolean(),
 });
+
+export const sessionAttributeFieldSchema = Joi.object({
+    name: Joi.string().required(),
+    type: Joi.string().required(),
+    attrs: Joi.object({
+        enabled: Joi.boolean().required(),
+        ttl_seconds: Joi.number().required(),
+        grace_period_seconds: Joi.number().required(),
+        platforms: Joi.array().items(Joi.string()).required(),
+    }).unknown(true).required(),
+}).unknown(true);

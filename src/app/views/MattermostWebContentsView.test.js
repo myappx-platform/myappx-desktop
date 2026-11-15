@@ -4,12 +4,13 @@
 'use strict';
 
 import AppState from 'common/appState';
-import {LOAD_FAILED, UPDATE_TARGET_URL} from 'common/communication';
+import {BROWSER_HISTORY_PUSH, LOAD_FAILED, SERVER_URL_CHANGED, UPDATE_TARGET_URL} from 'common/communication';
 import {MattermostServer} from 'common/servers/MattermostServer';
 import ServerManager from 'common/servers/serverManager';
 import {MattermostView, ViewType} from 'common/views/MattermostView';
 import ViewManager from 'common/views/viewManager';
 import {updateServerInfos} from 'main/app/utils';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 import {getServerAPI} from 'main/server/serverAPI';
 
 import {MattermostWebContentsView} from './MattermostWebContentsView';
@@ -24,8 +25,11 @@ jest.mock('electron', () => ({
     },
     WebContentsView: jest.fn().mockImplementation(() => ({
         webContents: {
+            id: 42,
             loadURL: jest.fn(),
             on: jest.fn(),
+            once: jest.fn(),
+            reload: jest.fn(),
             getTitle: () => 'title',
             getURL: () => 'http://server-1.com',
             send: jest.fn(),
@@ -36,7 +40,7 @@ jest.mock('electron', () => ({
                 goToOffset: jest.fn(),
                 canGoToOffset: jest.fn(),
             },
-            isDestroyed: jest.fn(),
+            isDestroyed: jest.fn(() => false),
         },
     })),
     ipcMain: {
@@ -84,6 +88,13 @@ jest.mock('main/performanceMonitor', () => ({
     registerServerView: jest.fn(),
     unregisterView: jest.fn(),
 }));
+jest.mock('main/security/localNetworkAccess', () => ({
+    __esModule: true,
+    default: {
+        registerWebContents: jest.fn(),
+        unregisterWebContents: jest.fn(),
+    },
+}));
 jest.mock('common/servers/serverManager', () => ({
     getRemoteInfo: jest.fn(),
     getServer: jest.fn(),
@@ -94,12 +105,14 @@ jest.mock('common/servers/serverManager', () => ({
         silly: jest.fn(),
     }),
     on: jest.fn(),
+    off: jest.fn(),
 }));
 jest.mock('main/server/serverAPI', () => ({
     getServerAPI: jest.fn(),
 }));
 jest.mock('common/views/viewManager', () => ({
     updateViewTitle: jest.fn(),
+    isPrimaryView: jest.fn(),
     getViewLog: jest.fn().mockReturnValue({
         info: jest.fn(),
         verbose: jest.fn(),
@@ -336,7 +349,7 @@ describe('main/views/MattermostWebContentsView', () => {
     });
 
     describe('destroy', () => {
-        const window = {contentView: {removeChildView: jest.fn()}, on: jest.fn()};
+        const window = {contentView: {removeChildView: jest.fn()}, on: jest.fn(), off: jest.fn(), isDestroyed: jest.fn(() => false)};
         const contextMenu = {
             dispose: jest.fn(),
         };
@@ -348,8 +361,10 @@ describe('main/views/MattermostWebContentsView', () => {
 
         it('should remove browser view from window', () => {
             const mattermostView = new MattermostWebContentsView(view, {}, window);
+            expect(jest.mocked(LocalNetworkAccessManager.registerWebContents)).toHaveBeenCalledWith(mattermostView.webContentsView.webContents);
             mattermostView.webContentsView.webContents.close = jest.fn();
             mattermostView.destroy();
+            expect(jest.mocked(LocalNetworkAccessManager.unregisterWebContents)).toHaveBeenCalledWith(mattermostView.webContentsId);
             expect(window.contentView.removeChildView).toBeCalledWith(mattermostView.webContentsView);
         });
 
@@ -375,6 +390,79 @@ describe('main/views/MattermostWebContentsView', () => {
             mattermostView.removeLoading = 1000;
             mattermostView.destroy();
             expect(spy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should remove listeners on long-lived emitters', () => {
+            const mattermostView = new MattermostWebContentsView(view, {}, window);
+            mattermostView.webContentsView.webContents.close = jest.fn();
+            mattermostView.destroy();
+            expect(ServerManager.off).toHaveBeenCalledWith(SERVER_URL_CHANGED, expect.any(Function));
+            expect(window.off).toHaveBeenCalledWith('blur', expect.any(Function));
+        });
+
+        it('should not throw when the underlying webContents is already gone', () => {
+            const mattermostView = new MattermostWebContentsView(view, {}, window);
+            mattermostView.webContentsView.webContents = undefined;
+            expect(() => mattermostView.destroy()).not.toThrow();
+        });
+
+        it('should not remove browser view when the parent window is already destroyed', () => {
+            const mattermostView = new MattermostWebContentsView(view, {}, window);
+            mattermostView.webContentsView.webContents.close = jest.fn();
+            window.isDestroyed.mockReturnValueOnce(true);
+            expect(() => mattermostView.destroy()).not.toThrow();
+            expect(window.contentView.removeChildView).not.toBeCalled();
+        });
+    });
+
+    describe('teardown during in-flight load (regression)', () => {
+        const window = {on: jest.fn(), off: jest.fn(), contentView: {removeChildView: jest.fn()}, webContents: {send: jest.fn()}, isDestroyed: jest.fn(() => false)};
+        let mattermostView;
+
+        beforeEach(() => {
+            MainWindow.get.mockReturnValue(window);
+            ServerManager.getServer.mockReturnValue(server);
+            mattermostView = new MattermostWebContentsView(view, {}, window);
+            mattermostView.webContentsView.webContents.close = jest.fn();
+            mattermostView.log = {info: jest.fn(), verbose: jest.fn(), error: jest.fn()};
+        });
+
+        it('isDestroyed should return true instead of throwing when the webContents is undefined', () => {
+            mattermostView.webContentsView.webContents = undefined;
+            expect(() => mattermostView.isDestroyed()).not.toThrow();
+            expect(mattermostView.isDestroyed()).toBe(true);
+        });
+
+        it('loadRetry should be a guarded no-op when the webContents is undefined', () => {
+            mattermostView.webContentsView.webContents = undefined;
+            expect(() => mattermostView.loadRetry('http://server-1.com/', new Error('test'))).not.toThrow();
+            expect(window.webContents.send).not.toHaveBeenCalled();
+        });
+
+        it('webContentsId should remain valid after the webContents is gone', () => {
+            const id = mattermostView.webContentsId;
+            expect(id).toBe(42);
+            mattermostView.webContentsView.webContents = undefined;
+            expect(mattermostView.webContentsId).toBe(id);
+        });
+
+        it('should not throw when a load rejects after the view has been destroyed', async () => {
+            const error = new Error('ERR_FAILED');
+            const rejection = Promise.reject(error);
+            mattermostView.webContentsView.webContents.loadURL.mockImplementation(() => rejection);
+
+            // Kick off a load, then tear the view down while it is still in flight.
+            mattermostView.load('http://server-1.com');
+            mattermostView.destroy();
+
+            // Electron nulls out the webContents once it is destroyed; the pending
+            // loadURL().catch() must not blow up when it reaches loadRetry/isDestroyed.
+            mattermostView.webContentsView.webContents = undefined;
+
+            await expect(rejection.catch((e) => e)).resolves.toBe(error);
+            await new Promise((resolve) => setImmediate(resolve));
+
+            expect(window.webContents.send).not.toHaveBeenCalledWith(LOAD_FAILED, expect.anything(), expect.anything(), expect.anything());
         });
     });
 
@@ -468,6 +556,77 @@ describe('main/views/MattermostWebContentsView', () => {
         it('should handle title with no dash', () => {
             mattermostView.handlePageTitleUpdated('Just Channel Name');
             expect(ViewManager.updateViewTitle).toHaveBeenCalledWith(mattermostView.id, 'Just Channel Name');
+        });
+    });
+
+    describe('useLastPath', () => {
+        const window = {on: jest.fn(), webContents: {send: jest.fn()}};
+        let mattermostView;
+
+        beforeEach(() => {
+            MainWindow.get.mockReturnValue(window);
+            mattermostView = new MattermostWebContentsView(view, {}, window);
+        });
+
+        it('should send BROWSER_HISTORY_PUSH immediately for the primary view', () => {
+            ViewManager.isPrimaryView.mockReturnValue(true);
+            mattermostView.setLastPath('/team/channel');
+
+            mattermostView.useLastPath();
+
+            expect(mattermostView.webContentsView.webContents.send).toHaveBeenCalledWith(BROWSER_HISTORY_PUSH, '/team/channel');
+            expect(mattermostView.webContentsView.webContents.reload).not.toHaveBeenCalled();
+            expect(mattermostView.lastPath).toBeUndefined();
+        });
+
+        it('should send the captured path after reload, even though lastPath was cleared synchronously', () => {
+            ViewManager.isPrimaryView.mockReturnValue(false);
+
+            let didFinishLoadCb;
+            mattermostView.webContentsView.webContents.once.mockImplementation((event, cb) => {
+                if (event === 'did-finish-load') {
+                    didFinishLoadCb = cb;
+                }
+            });
+
+            mattermostView.setLastPath('/team/channel');
+            mattermostView.useLastPath();
+
+            expect(mattermostView.webContentsView.webContents.reload).toHaveBeenCalled();
+            expect(mattermostView.lastPath).toBeUndefined();
+
+            didFinishLoadCb();
+
+            expect(mattermostView.webContentsView.webContents.send).toHaveBeenCalledWith(BROWSER_HISTORY_PUSH, '/team/channel');
+        });
+
+        it('should not send when the webContents is destroyed before did-finish-load fires', () => {
+            ViewManager.isPrimaryView.mockReturnValue(false);
+
+            let didFinishLoadCb;
+            mattermostView.webContentsView.webContents.once.mockImplementation((event, cb) => {
+                if (event === 'did-finish-load') {
+                    didFinishLoadCb = cb;
+                }
+            });
+
+            mattermostView.setLastPath('/team/channel');
+            mattermostView.useLastPath();
+
+            mattermostView.webContentsView.webContents.isDestroyed.mockReturnValue(true);
+            didFinishLoadCb();
+
+            expect(mattermostView.webContentsView.webContents.send).not.toHaveBeenCalledWith(BROWSER_HISTORY_PUSH, expect.anything());
+        });
+
+        it('should be a no-op when lastPath is not set', () => {
+            ViewManager.isPrimaryView.mockReturnValue(false);
+
+            mattermostView.useLastPath();
+
+            expect(mattermostView.webContentsView.webContents.once).not.toHaveBeenCalled();
+            expect(mattermostView.webContentsView.webContents.reload).not.toHaveBeenCalled();
+            expect(mattermostView.webContentsView.webContents.send).not.toHaveBeenCalledWith(BROWSER_HISTORY_PUSH, expect.anything());
         });
     });
 });

@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import CallsWidgetWindow from 'app/callsWidgetWindow';
-import MainWindow from 'app/mainWindow/mainWindow';
 import TabManager from 'app/tabs/tabManager';
 import WebContentsManager from 'app/views/webContentsManager';
 import Config from 'common/config';
@@ -89,6 +88,88 @@ describe('app/menus/appMenu/view', () => {
     });
 
     describe('createViewMenu', () => {
+        it('should reload view with currentURL when reload menu item is clicked', () => {
+            localizeMessage.mockImplementation((id) => {
+                if (id === 'main.menus.app.view.reload') {
+                    return 'Reload';
+                }
+                return id;
+            });
+
+            const menu = createViewMenu();
+            const reloadMenuItem = menu.submenu.find((item) => item.label === 'Reload');
+            expect(reloadMenuItem).not.toBe(undefined);
+            reloadMenuItem.click();
+            expect(mockView.reload).toHaveBeenCalledWith('https://example.com/current-page');
+        });
+
+        it('should reload view with currentURL when clear cache and reload menu item is clicked', () => {
+            localizeMessage.mockImplementation((id) => {
+                if (id === 'main.menus.app.view.clearCacheAndReload') {
+                    return 'Clear Cache and Reload';
+                }
+                return id;
+            });
+
+            const menu = createViewMenu();
+            const clearCacheMenuItem = menu.submenu.find((item) => item.label === 'Clear Cache and Reload');
+            expect(clearCacheMenuItem).not.toBe(undefined);
+            clearCacheMenuItem.click();
+            expect(WebContentsManager.clearCacheAndReloadView).toHaveBeenCalledWith(mockView.id);
+        });
+
+        it('should handle reload when no focused view is available', () => {
+            WebContentsManager.getFocusedView.mockReturnValue(null);
+            TabManager.getCurrentActiveTabView.mockReturnValue(null);
+
+            localizeMessage.mockImplementation((id) => {
+                if (id === 'main.menus.app.view.reload') {
+                    return 'Reload';
+                }
+                return id;
+            });
+
+            const menu = createViewMenu();
+            const reloadMenuItem = menu.submenu.find((item) => item.label === 'Reload');
+            expect(reloadMenuItem).not.toBe(undefined);
+
+            // Should not throw an error when no view is available
+            expect(() => reloadMenuItem.click()).not.toThrow();
+        });
+
+        it('should reload active tab when menu open clears focused view', () => {
+            WebContentsManager.getFocusedView.mockReturnValue(null);
+            TabManager.getCurrentActiveTabView.mockReturnValue(mockView);
+
+            localizeMessage.mockImplementation((id) => {
+                if (id === 'main.menus.app.view.reload') {
+                    return 'Reload';
+                }
+                return id;
+            });
+
+            const menu = createViewMenu();
+            const reloadMenuItem = menu.submenu.find((item) => item.label === 'Reload');
+            reloadMenuItem.click();
+            expect(mockView.reload).toHaveBeenCalledWith('https://example.com/current-page');
+        });
+
+        it('should clear cache and reload active tab when menu open clears focused view', () => {
+            WebContentsManager.getFocusedView.mockReturnValue(null);
+            TabManager.getCurrentActiveTabView.mockReturnValue(mockView);
+
+            localizeMessage.mockImplementation((id) => {
+                if (id === 'main.menus.app.view.clearCacheAndReload') {
+                    return 'Clear Cache and Reload';
+                }
+                return id;
+            });
+
+            const menu = createViewMenu();
+            const clearCacheMenuItem = menu.submenu.find((item) => item.label === 'Clear Cache and Reload');
+            clearCacheMenuItem.click();
+            expect(WebContentsManager.clearCacheAndReloadView).toHaveBeenCalledWith(mockView.id);
+        });
 
         it('should show downloads menu item when downloads are available', () => {
             downloadsManager.hasDownloads.mockReturnValue(true);

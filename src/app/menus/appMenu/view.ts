@@ -14,6 +14,8 @@ import DeveloperMode from 'main/developerMode';
 import downloadsManager from 'main/downloadsManager';
 import {localizeMessage} from 'main/i18nManager';
 
+import {getFocusedOrActiveTabView} from './menuTargetView';
+
 export default function createViewMenu() {
     const viewSubMenu: Electron.MenuItemConstructorOptions[] = [{
         label: localizeMessage('main.menus.app.view.find', 'Find..'),
@@ -25,7 +27,7 @@ export default function createViewMenu() {
         label: localizeMessage('main.menus.app.view.reload', 'Reload'),
         accelerator: 'CmdOrCtrl+R',
         click() {
-            const view = WebContentsManager.getFocusedView();
+            const view = getFocusedOrActiveTabView();
             if (view) {
                 view.reload(view.currentURL);
             }
@@ -34,7 +36,7 @@ export default function createViewMenu() {
         label: localizeMessage('main.menus.app.view.clearCacheAndReload', 'Clear Cache and Reload'),
         accelerator: 'Shift+CmdOrCtrl+R',
         click() {
-            const view = WebContentsManager.getFocusedView();
+            const view = getFocusedOrActiveTabView();
             if (view) {
                 WebContentsManager.clearCacheAndReloadView(view.id);
             }

@@ -11,7 +11,7 @@ import {shell} from 'electron';
 
 import MainWindow from 'app/mainWindow/mainWindow';
 import NavigationManager from 'app/navigationManager';
-import {generateHandleConsoleMessage, isCustomProtocol} from 'app/views/webContentEventsCommon';
+import {generateHandleConsoleMessage, generateWillFrameNavigate, isCustomProtocol} from 'app/views/webContentEventsCommon';
 import WebContentsManager from 'app/views/webContentsManager';
 import {Logger} from 'common/log';
 import ServerManager from 'common/servers/serverManager';
@@ -20,8 +20,8 @@ import {
     parseURL,
 } from 'common/utils/url';
 import ContextMenu from 'main/contextMenu';
-
-import allowProtocolDialog from '../../main/security/allowProtocolDialog';
+import allowProtocolDialog from 'main/security/allowProtocolDialog';
+import LocalNetworkAccessManager from 'main/security/localNetworkAccess';
 
 const log = new Logger('PluginsPopUpsManager');
 
@@ -45,6 +45,7 @@ export class PluginsPopUpsManager {
             parentId,
             win,
         };
+        LocalNetworkAccessManager.registerWebContents(win.webContents);
 
         // We take a conservative approach for the time being and disallow most events coming from popups:
         // - Redirects
@@ -62,6 +63,7 @@ export class PluginsPopUpsManager {
             log.warn('prevented popup window from navigating');
             ev.preventDefault();
         });
+        win.webContents.on('will-frame-navigate', generateWillFrameNavigate(log));
         win.webContents.on('did-start-navigation', (ev: Event<WebContentsDidStartNavigationEventParams>) => {
             if (ev.url === details.url) {
                 return;
@@ -109,6 +111,7 @@ export class PluginsPopUpsManager {
         win.once('closed', () => {
             log.debug('removing popup window', details.url, webContentsId);
             Reflect.deleteProperty(this.popups, webContentsId);
+            LocalNetworkAccessManager.unregisterWebContents(webContentsId);
             contextMenu.dispose();
         });
 
